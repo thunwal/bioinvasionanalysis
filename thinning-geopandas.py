@@ -6,6 +6,7 @@ import numpy as np
 from shapely.geometry import Polygon
 
 # Set paths
+# tbd: eliminate path_gdb
 path = r"C:\Daten\Dokumente\UNIGIS\ArcGIS Projekte\p_distanzanalyse"
 path_gdb = fr"{path}\p_distanzanalyse.gdb"
 path_occurrences = fr"{path_gdb}\msculpturalis_occurrence_20230925"
