@@ -1,32 +1,44 @@
-import geopandas as gpd
-from shapely.geometry import Point, Polygon
 import arcpy
+from datetime import datetime as dt
+import geopandas as gpd
 import numpy as np
-from datetime import datetime
+# import os
+from shapely.geometry import Polygon
 
 # Set paths
-path_gdb = r"C:\Daten\Dokumente\UNIGIS\ArcGIS Projekte\p_distanzanalyse\p_distanzanalyse.gdb"
+path = r"C:\Daten\Dokumente\UNIGIS\ArcGIS Projekte\p_distanzanalyse"
+path_gdb = fr"{path}\p_distanzanalyse.gdb"
 path_occurrences = fr"{path_gdb}\msculpturalis_occurrence_20230925"
 path_cost_surface = fr"{path_gdb}\costs_with_barriers"
 
-# Read the raster extent using arcpy
-print(f"[{datetime.now().strftime('%H:%M:%S')}] Reading raster data...")
+# Read the raster properties using ArcPy
+print(f"[{dt.now().strftime('%H:%M:%S')}] Reading raster properties...")
 desc = arcpy.Describe(path_cost_surface)
 extent = desc.extent
 cell_size = desc.meanCellWidth
 xmin, ymin, xmax, ymax = map(int, [extent.XMin, extent.YMin, extent.XMax, extent.YMax])
 crs = desc.spatialReference.factoryCode
 
-# Read points from the geodatabase
-print(f"[{datetime.now().strftime('%H:%M:%S')}] Reading occurrence data...")
+# ArcPy environment settings
+arcpy.env.snapRaster = path_cost_surface
+arcpy.env.parallelProcessingFactor = "100%"
+arcpy.env.overwriteOutput = True
+arcpy.env.addOutputsToMap = False
+arcpy.env.autoCancelling = True
+arcpy.env.scratchWorkspace = path_gdb
+arcpy.env.workspace = path_gdb
+arcpy.env.outputCoordinateSystem = desc.spatialReference
+
+# Read occurrences
+print(f"[{dt.now().strftime('%H:%M:%S')}] Reading occurrence data...")
 points = gpd.read_file(path_gdb, driver='FileGDB', layer='msculpturalis_occurrence_20230925')
 
 # Reproject points to match the coordinate system of the raster
-print(f"[{datetime.now().strftime('%H:%M:%S')}] Projecting occurrence data to EPSG:{crs}...")
+print(f"[{dt.now().strftime('%H:%M:%S')}] Projecting occurrence data to EPSG:{crs}...")
 points = points.to_crs(epsg=crs)
 
-# Create a fishnet based on the raster extent
-print(f"[{datetime.now().strftime('%H:%M:%S')}] Creating fishnet...")
+# Create a temporary fishnet based on the raster properties
+print(f"[{dt.now().strftime('%H:%M:%S')}] Creating temporary fishnet with raster properties...")
 x_range = np.arange(xmin, xmax, cell_size)
 y_range = np.arange(ymin, ymax, cell_size)
 
@@ -36,27 +48,25 @@ fishnet = gpd.GeoDataFrame(geometry=[Polygon([
 
 fishnet.set_crs(epsg=crs, inplace=True)
 
-# Perform a spatial join between points and fishnet using 'intersects' relationship
-# sys:1: FutureWarning: The `op` parameter is deprecated and will be removed in a future release. Please use the `predicate` parameter instead.
-print(f"[{datetime.now().strftime('%H:%M:%S')}] Joining occurrences and fishnet cells...")
-result = gpd.sjoin(points, fishnet, how="inner", op="intersects")
+# Join points with fishnet cells
+print(f"[{dt.now().strftime('%H:%M:%S')}] Joining occurrences and fishnet cells...")
+thinned = gpd.sjoin(points, fishnet, how="inner", predicate="intersects")
 
-# Get the point with the minimum observation_year for each fishnet cell
-# result = result.sort_values("observation_year").groupby("index_right").first()
+# Group points by fishnet cell and select the point with the minimum observation_year in each group
+print(f"[{dt.now().strftime('%H:%M:%S')}] Selecting occurrences with minimum observation_year per cell...")
+thinned = thinned.groupby("index_right").apply(lambda group: group.loc[group['observation_year'].idxmin()])
 
-# Group by fishnet cell and find the point with the minimum observation_year in each group
-print(f"[{datetime.now().strftime('%H:%M:%S')}] Grouping by fishnet cell...")
-result = result.groupby("index_right").apply(lambda group: group.loc[group['observation_year'].idxmin()])
+# Drop index and reset CRS (CRS information gets lost during sjoin or groupby)
+thinned.reset_index(drop=True, inplace=True)
+thinned.set_crs(epsg=crs, inplace=True)
 
-# Reset the index
-result.reset_index(drop=True, inplace=True)
-
-# Save the result GeoDataFrame to the geodatabase
-# result.to_file(fr"FileGDB:{path_gdb}?layer=msculpturalis_occurrence_20230925_thinned", driver="FileGDB")
-result.to_file("points_thinned.gpkg", layer="points_thinned", driver="GPKG")
+# Save the thinned points to the working directory
+# Target format is GeoPackage (*.gpkg) because GeoPandas cannot write to File GeoDatabase (*.gdb).
+thinned.to_file(fr"{path}\points_thinned.gpkg", layer="points_thinned", driver="GPKG")
+print(f"[{dt.now().strftime('%H:%M:%S')}] Done! Thinned occurrences saved in {path}\points_thinned.gpkg.")
 
 # Convert the GeoPackage file to a feature class in the geodatabase using arcpy
-arcpy.conversion.ExportFeatures(f"points_thinned.gpkg\points_thinned", fr"{path_gdb}\msculpturalis_occurrence_20230925_thinned")
+# arcpy.conversion.ExportFeatures(fr"{path}\points_thinned.gpkg\points_thinned", fr"{path_occurrences}_thinned")
 
-# Optionally, remove the GeoPackage file if no longer needed
-os.remove("points_thinned.gpkg")
+# Remove the GeoPackage file if no longer needed
+# os.remove("points_thinned.gpkg")
