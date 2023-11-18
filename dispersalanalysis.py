@@ -5,18 +5,18 @@ import numpy as np
 import os
 from shapely.geometry import Polygon
 
-# Input parameters
-# Set "run" to name your model run. All outputs will be named {presence}_{run}_{featureclass}.
-# Any existing files and layers with the same name will be overwritten.
+# PARAMETERS ------------------------------------------------------------------
+gdb = r"C:\Daten\Dokumente\UNIGIS\ArcGIS Projekte\p_distanzanalyse\p_distanzanalyse.gdb"
+workdir = os.path.dirname(gdb)
+presence = "msculpturalis_20230925"  # input presence point data
+cost = "msculpturalis_sdm_clip_rev"  # input cost raster
+run = "sdmrev"  # output names will be prefixed {presence}_{run} and existing files/layers overwritten.
+year_field = "observation_year"  # field in presence data containing observation year
 start_year = 2008  # year of first observation, or first year of analysis
 end_year = 2023  # year of latest observation, or last year of analysis
-gdb = r"C:\Daten\Dokumente\UNIGIS\ArcGIS Projekte\p_distanzanalyse\p_distanzanalyse.gdb"
-presence = "msculpturalis_20230925"
-cost = "msculpturalis_sdm_clip_rev"  # "costs_with_barriers", "msculpturalis_sdm_clip", "msculpturalis_sdm_clip_rev"
-run = "sdmrev"  # "costrast1", "sdm", "sdmrev"
-workdir = os.path.dirname(gdb)
+# -----------------------------------------------------------------------------
 
-# Read the raster properties using ArcPy
+# Read raster properties. Using ArcPy to support File GeoDatabase.
 print(f"[{dt.now().strftime('%H:%M:%S')}] Reading raster properties...")
 desc = arcpy.Describe(os.path.join(gdb, cost))
 extent = desc.extent
@@ -39,8 +39,9 @@ def thinning():
     print(f"[{dt.now().strftime('%H:%M:%S')}] Reading presence data...")
     points = gpd.read_file(gdb, driver="FileGDB", layer=presence)
     
-    # Reproject points to match the coordinate system of the raster
+    # Reproject points to match the coordinate system of the raster.
     # Problem: We don't know the CRS authority. Try EPSG and ESRI.
+    # tbd, alternative approach: EPSG code range is 1024 to 32767.
     try:
         # Attempt to project with "epsg:{crs_code}"
         points = points.to_crs(f"epsg:{crs_code}")
@@ -73,9 +74,9 @@ def thinning():
     print(f"[{dt.now().strftime('%H:%M:%S')}] Joining presence data and fishnet polygons...")
     thinned = gpd.sjoin(points, fishnet, how="inner", predicate="intersects")
     
-    # Group points by fishnet cell and select the point with the minimum observation_year in each group
-    print(f"[{dt.now().strftime('%H:%M:%S')}] Selecting presence locations with minimum observation_year per cell...")
-    thinned = thinned.groupby("index_right").apply(lambda group: group.loc[group['observation_year'].idxmin()])
+    # Group points by fishnet cell and select the point with the minimum year in each group
+    print(f"[{dt.now().strftime('%H:%M:%S')}] Selecting presence locations with minimum year per cell...")
+    thinned = thinned.groupby("index_right").apply(lambda group: group.loc[group[year_field].idxmin()])
     
     # Drop index and reset CRS (CRS information gets lost during sjoin or groupby)
     thinned.reset_index(drop=True, inplace=True)
@@ -111,7 +112,7 @@ def distacc():
             path_back_dir_raster = os.path.join(gdb, f"{presence}_{run}_{year}_back")
 
             # Select occurrences known in the respective year.
-            arcpy.management.MakeFeatureLayer(os.path.join(gdb, f"{presence}_{run}_thinned"), "temp_layer", f"observation_year <= {year}")
+            arcpy.management.MakeFeatureLayer(os.path.join(gdb, f"{presence}_{run}_thinned"), "temp_layer", f"{year_field} <= {year}")
 
             # Create distance accumulation raster.
             # Note: This function returns the raster which needs to be saved in an extra step.
@@ -143,13 +144,13 @@ def optpaths():
             path_back_dir_raster = os.path.join(gdb, f"{presence}_{run}_{year - 1}_back")
 
             # Select occurrences with the respective observation year.
-            arcpy.management.MakeFeatureLayer(os.path.join(gdb, f"{presence}_{run}_thinned"), "temp_layer", f"observation_year = {year}")
+            arcpy.management.MakeFeatureLayer(os.path.join(gdb, f"{presence}_{run}_thinned"), "temp_layer", f"{year_field} = {year}")
 
             # Create optimal paths.
             print(f"[{dt.now().strftime('%H:%M:%S')}] Calculating optimal paths for year {year}...")
             path_optpaths = fr"memory\optpaths"
             arcpy.sa.OptimalPathAsLine("temp_layer", path_dist_acc_raster, path_back_dir_raster, path_optpaths,
-                                       "observation_year", "EACH_CELL", False)
+                                       year_field, "EACH_CELL", False)
 
             # Create new feature class in first iteration and append in subsequent iterations.
             if idx == 0:
