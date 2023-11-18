@@ -10,7 +10,7 @@ gdb = r"C:\Daten\Dokumente\UNIGIS\ArcGIS Projekte\p_distanzanalyse\p_distanzanal
 workdir = os.path.dirname(gdb)
 presence = "msculpturalis_20230925"  # input presence point data
 cost = "msculpturalis_sdm_clip_rev"  # input cost raster
-run = "sdmrev"  # output names will be prefixed {presence}_{run} and existing files/layers overwritten.
+run = "test"  # output names will be prefixed {presence}_{run} and existing files/layers overwritten.
 year_field = "observation_year"  # field in presence data containing observation year
 start_year = 2008  # year of first observation, or first year of analysis
 end_year = 2023  # year of latest observation, or last year of analysis
@@ -21,9 +21,15 @@ print(f"[{dt.now().strftime('%H:%M:%S')}] Reading raster properties...")
 desc = arcpy.Describe(os.path.join(gdb, cost))
 extent = desc.extent
 cell_size = desc.meanCellWidth
+cell_size_y = desc.meanCellHeight
 xmin, ymin, xmax, ymax = map(int, [extent.XMin, extent.YMin, extent.XMax, extent.YMax])
 crs_code = desc.spatialReference.factoryCode
-print(f"[{dt.now().strftime('%H:%M:%S')}] Raster has CRS factoryCode {crs_code} and cell size {cell_size}.")
+print(f"[{dt.now().strftime('%H:%M:%S')}] Raster has CRS factoryCode {crs_code} and cell size {cell_size} x {cell_size_y}.")
+
+# Check if cell size width and height are the same. If not, stop script execution.
+# The thinning process relies on a fishnet with equal cell side length.
+if cell_size != cell_size_y:
+    raise Exception("Raster cells are required to have equal side lengths for the thinning procedure.")
 
 # ArcPy environment settings
 arcpy.env.snapRaster = os.path.join(gdb, cost)
