@@ -169,10 +169,14 @@ def optpaths():
             arcpy.Delete_management("temp_layer")
             arcpy.Delete_management(path_optpaths)
 
+        # The observation year of a presence point has been saved in "DestID", rename to "year".
+        arcpy.management.AlterField(os.path.join(gdb, f"{presence}_{run}_paths"), "DestID", "year")
+        print(f"[{dt.now().strftime('%H:%M:%S')}] Done! Renamed 'DestID' to 'year' in the target feature class.")
+
     finally:
         arcpy.CheckInExtension("spatial")
 
 
-thinning()
-distacc()
-optpaths()
+# thinning()
+# distacc()
+# optpaths()

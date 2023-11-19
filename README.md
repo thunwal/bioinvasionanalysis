@@ -8,3 +8,4 @@ environment. Follow [these](https://pro.arcgis.com/en/pro-app/3.0/arcpy/get-star
 Next - in a PyCharm project -, add the file Python.exe in the newly created path as the project interpreter via 
 Settings > Project > Python Interpreter > Add Interpreter > Add Local Interpreter > Virtualenv environment > Existing.
 
+tbd: arcpy in eigenem Env installieren?
