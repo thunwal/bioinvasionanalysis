@@ -9,11 +9,11 @@ from shapely.geometry import Polygon
 gdb = r"C:\Daten\Dokumente\UNIGIS\ArcGIS Projekte\p_distanzanalyse\p_distanzanalyse.gdb"
 workdir = os.path.dirname(gdb)
 presence = "msculpturalis_20230925"  # input presence point data
-cost = "msculpturalis_sdm_clip_rev"  # input cost raster
-run = "test"  # output names will be prefixed {presence}_{run} and existing files/layers overwritten.
+cost = "msculpturalis_sdm_clip_rev_scaled100"  # input cost raster     msculpturalis_sdm_clip_rev     _rescaled100
+run = "sdmrev100"  # output names will be prefixed {presence}_{run} and existing files/layers overwritten.      sdmrev  costrast1   simple100
 year_field = "observation_year"  # field in presence data containing observation year
 start_year = 2008  # year of first observation, or first year of analysis
-end_year = 2023  # year of latest observation, or last year of analysis
+end_year = 2023  # year of latest observation, or last year of analysis  # tbd: input = output does not work
 # -----------------------------------------------------------------------------
 
 # Read raster properties. Using ArcPy to support File GeoDatabase.
@@ -41,13 +41,16 @@ arcpy.env.outputCoordinateSystem = desc.spatialReference
 
 
 def thinning():
-    # Read presence data
+    # Read presence data. Import the column specified in year_field only.
+    # Set year_field to int32 (Long) as the default Int64 (Big) is not supported by OptimalPathAsLine,
+    # and int16 (Short) is not supported by GeoPandas to_file().
     print(f"[{dt.now().strftime('%H:%M:%S')}] Reading presence data...")
-    points = gpd.read_file(gdb, driver="FileGDB", layer=presence)
-    
+    points = gpd.read_file(gdb, driver="FileGDB", layer=presence, include_fields=[year_field])
+    points[year_field] = points[year_field].astype("int32")
+
     # Reproject points to match the coordinate system of the raster.
-    # Problem: We don't know the CRS authority. Try EPSG and ESRI.
-    # tbd, alternative approach: EPSG code range is 1024 to 32767.
+    # We only know the CRS code, but not the CRS authority -> try EPSG and ESRI.
+    # tbd: alternative approach: EPSG code range is 1024 to 32767.
     try:
         # Attempt to project with "epsg:{crs_code}"
         points = points.to_crs(f"epsg:{crs_code}")
@@ -124,7 +127,7 @@ def distacc():
             # Note: This function returns the raster which needs to be saved in an extra step.
             print(f"[{dt.now().strftime('%H:%M:%S')}] Creating distance accumulation raster for year {year}...")
             dist_acc_raster = arcpy.sa.DistanceAccumulation("temp_layer", "", "",
-                                                            os.path.join(gdb, cost), "", "BINARY 1 -30 30", "", "BINARY 1 45",
+                                                            os.path.join(gdb, cost), "", "", "", "",
                                                             path_back_dir_raster, "", "", "", "",
                                                             "", "", "GEODESIC")
             dist_acc_raster.save(path_dist_acc_raster)
@@ -177,6 +180,6 @@ def optpaths():
         arcpy.CheckInExtension("spatial")
 
 
-# thinning()
-# distacc()
-# optpaths()
+thinning()
+distacc()
+optpaths()
