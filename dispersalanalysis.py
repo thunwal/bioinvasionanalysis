@@ -9,8 +9,8 @@ from shapely.geometry import Polygon
 gdb = r"C:\Daten\Dokumente\UNIGIS\ArcGIS Projekte\p_distanzanalyse\p_distanzanalyse.gdb"
 workdir = os.path.dirname(gdb)
 presence = "msculpturalis_20230925"  # input presence point data
-cost = "msculpturalis_sdm_clip_rev_scaled100"  # input cost raster     msculpturalis_sdm_clip_rev     _rescaled100
-run = "sdmrev100"  # output names will be prefixed {presence}_{run} and existing files/layers overwritten.      sdmrev  costrast1   simple100
+cost = "msculpturalis_sdm_clip_rev_scaled100"  # input cost raster     msculpturalis_sdm_clip_rev     _rescaled100   _scaled100   costs_with_barriers
+run = "sdmrev100"  # output names will be prefixed {presence}_{run} and existing files/layers overwritten.    sdmrev100   sdmrev  costrast1   simple100
 year_field = "observation_year"  # field in presence data containing observation year
 start_year = 2008  # year of first observation, or first year of analysis
 end_year = 2023  # year of latest observation, or last year of analysis  # tbd: input = output does not work
@@ -96,10 +96,6 @@ def thinning():
     thinned.to_file(os.path.join(workdir, f"{presence}_{run}_thinned.gpkg"), layer=f"{presence}_{run}_thinned", driver="GPKG")
 
     # Convert the GeoPackage file to a feature class in the File GeoDatabase using ArcPy.
-    # Delete the target feature class if it exists.
-    if arcpy.Exists(os.path.join(gdb, f"{presence}_{run}_thinned")):
-        arcpy.Delete_management(os.path.join(gdb, f"{presence}_{run}_thinned"))
-
     arcpy.CopyFeatures_management(os.path.join(workdir, f"{presence}_{run}_thinned.gpkg", f"{presence}_{run}_thinned"),
                                   os.path.join(gdb, f"{presence}_{run}_thinned"))
 
@@ -108,76 +104,65 @@ def thinning():
 
 
 def distacc():
-    # Check out any necessary licenses.
-    try:
-        arcpy.CheckOutExtension("spatial")
+    # Iterate through the specified range of years.
+    # Note: end_year is not included in range, which fits our needs.
+    for year in range(start_year, end_year, 1):
 
-        # Iterate through the specified range of years.
-        # end_year is not included in range which fits our needs.
-        for year in range(start_year, end_year, 1):
+        # Form the output raster paths.
+        path_dist_acc_raster = os.path.join(gdb, f"{presence}_{run}_{year}_acc")
+        path_back_dir_raster = os.path.join(gdb, f"{presence}_{run}_{year}_back")
 
-            # Form the output raster paths.
-            path_dist_acc_raster = os.path.join(gdb, f"{presence}_{run}_{year}_acc")
-            path_back_dir_raster = os.path.join(gdb, f"{presence}_{run}_{year}_back")
+        # Select occurrences known in the respective year.
+        arcpy.management.MakeFeatureLayer(os.path.join(gdb, f"{presence}_{run}_thinned"), "temp_layer", f"{year_field} <= {year}")
 
-            # Select occurrences known in the respective year.
-            arcpy.management.MakeFeatureLayer(os.path.join(gdb, f"{presence}_{run}_thinned"), "temp_layer", f"{year_field} <= {year}")
-
-            # Create distance accumulation raster.
-            # Note: This function returns the raster which needs to be saved in an extra step.
-            print(f"[{dt.now().strftime('%H:%M:%S')}] Creating distance accumulation raster for year {year}...")
-            dist_acc_raster = arcpy.sa.DistanceAccumulation("temp_layer", "", "",
-                                                            os.path.join(gdb, cost), "", "", "", "",
-                                                            path_back_dir_raster, "", "", "", "",
-                                                            "", "", "GEODESIC")
-            dist_acc_raster.save(path_dist_acc_raster)
-            arcpy.Delete_management("temp_layer")
-
-    finally:
-        arcpy.CheckInExtension("spatial")
+        # Run distance accumulation
+        print(f"[{dt.now().strftime('%H:%M:%S')}] Creating cost accumulation and back direction rasters for year {year}...")
+        dist_acc_raster = arcpy.sa.DistanceAccumulation("temp_layer", "", "",
+                                                        os.path.join(gdb, cost), "", "", "", "",
+                                                        path_back_dir_raster, "", "", "", "",
+                                                        "", "", "GEODESIC")
+        # Save cost accumulation raster (back direction raster is already saved by the DistanceAccumulation tool)
+        # tbd: Raster name is not set, make sure the name is set correctly
+        dist_acc_raster.setProperty("name", f"{presence}_{run}_{year}_acc")
+        dist_acc_raster.save(path_dist_acc_raster)
+        # delete the temp layer to ensure everything is cleaned up
+        arcpy.Delete_management("temp_layer")
 
 
 def optpaths():
-    # Check out any necessary licenses.
-    try:
-        arcpy.CheckOutExtension("spatial")
+    # Iterate through the specified range of years.
+    # start_year + 1 because no paths can be created in the first year.
+    # end_year + 1 because range end is not included in range.
+    for idx, year in enumerate(range(start_year + 1, end_year + 1)):
 
-        # Iterate through the specified range of years.
-        # start_year + 1 because no paths can be created in the first year.
-        # end_year + 1 because range end is not included in range.
-        for idx, year in enumerate(range(start_year + 1, end_year + 1)):
+        # Form the input raster paths based on the year. Subtract 1 year because we
+        # want to create least-cost paths to occurrences known in the previous year.
+        path_dist_acc_raster = os.path.join(gdb, f"{presence}_{run}_{year - 1}_acc")
+        path_back_dir_raster = os.path.join(gdb, f"{presence}_{run}_{year - 1}_back")
 
-            # Form the input raster paths based on the year. Subtract 1 year because we
-            # want to create least-cost paths to occurrences known in the previous year.
-            path_dist_acc_raster = os.path.join(gdb, f"{presence}_{run}_{year - 1}_acc")
-            path_back_dir_raster = os.path.join(gdb, f"{presence}_{run}_{year - 1}_back")
+        # Select occurrences with the respective observation year.
+        arcpy.management.MakeFeatureLayer(os.path.join(gdb, f"{presence}_{run}_thinned"), "temp_layer", f"{year_field} = {year}")
 
-            # Select occurrences with the respective observation year.
-            arcpy.management.MakeFeatureLayer(os.path.join(gdb, f"{presence}_{run}_thinned"), "temp_layer", f"{year_field} = {year}")
+        # Create optimal paths.
+        print(f"[{dt.now().strftime('%H:%M:%S')}] Calculating optimal paths for year {year}...")
+        path_optpaths = fr"memory\optpaths"
+        arcpy.sa.OptimalPathAsLine("temp_layer", path_dist_acc_raster, path_back_dir_raster, path_optpaths,
+                                   year_field, "EACH_CELL", False)
 
-            # Create optimal paths.
-            print(f"[{dt.now().strftime('%H:%M:%S')}] Calculating optimal paths for year {year}...")
-            path_optpaths = fr"memory\optpaths"
-            arcpy.sa.OptimalPathAsLine("temp_layer", path_dist_acc_raster, path_back_dir_raster, path_optpaths,
-                                       year_field, "EACH_CELL", False)
+        # Create new feature class in first iteration and append in subsequent iterations.
+        if idx == 0:
+            print(f"[{dt.now().strftime('%H:%M:%S')}] Saving optimal paths for year {year}...")
+            arcpy.management.CopyFeatures(path_optpaths, os.path.join(gdb, f"{presence}_{run}_paths"))
+        else:
+            print(f"[{dt.now().strftime('%H:%M:%S')}] Appending optimal paths for year {year}...")
+            arcpy.management.Append(inputs=[path_optpaths], target=os.path.join(gdb, f"{presence}_{run}_paths"))
 
-            # Create new feature class in first iteration and append in subsequent iterations.
-            if idx == 0:
-                print(f"[{dt.now().strftime('%H:%M:%S')}] Saving optimal paths for year {year}...")
-                arcpy.management.CopyFeatures(path_optpaths, os.path.join(gdb, f"{presence}_{run}_paths"))
-            else:
-                print(f"[{dt.now().strftime('%H:%M:%S')}] Appending optimal paths for year {year}...")
-                arcpy.management.Append(inputs=[path_optpaths], target=os.path.join(gdb, f"{presence}_{run}_paths"))
+        arcpy.Delete_management("temp_layer")
+        arcpy.Delete_management(path_optpaths)
 
-            arcpy.Delete_management("temp_layer")
-            arcpy.Delete_management(path_optpaths)
-
-        # The observation year of a presence point has been saved in "DestID", rename to "year".
-        arcpy.management.AlterField(os.path.join(gdb, f"{presence}_{run}_paths"), "DestID", "year")
-        print(f"[{dt.now().strftime('%H:%M:%S')}] Done! Renamed 'DestID' to 'year' in the target feature class.")
-
-    finally:
-        arcpy.CheckInExtension("spatial")
+    # The observation year of a presence point has been saved in "DestID", rename to "year".
+    arcpy.management.AlterField(os.path.join(gdb, f"{presence}_{run}_paths"), "DestID", "year")
+    print(f"[{dt.now().strftime('%H:%M:%S')}] Done! Renamed 'DestID' to 'year' in the target feature class.")
 
 
 thinning()
