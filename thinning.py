@@ -6,7 +6,7 @@ import os
 import rasterio as rio
 from shapely.geometry import Polygon
 
-def thinning(gdb, workdir, presence, run, year_field, cost):
+def thinning(workdir, presence, cost, run, year_field):
     print(f"[{dt.now().strftime('%H:%M:%S')}] Reading cost raster properties...")
     desc = rio.open(os.path.join(workdir, cost))
     extent = desc.bounds
@@ -22,7 +22,7 @@ def thinning(gdb, workdir, presence, run, year_field, cost):
 
     # Read presence data. Import the column specified in year_field only.
     print(f"[{dt.now().strftime('%H:%M:%S')}] Reading presence data...")
-    points = gpd.read_file(gdb, driver="FileGDB", layer=presence, include_fields=[year_field])
+    points = gpd.read_file(os.path.join(workdir, f"{presence}.gpkg"), driver="GPKG", layer=presence, include_fields=[year_field])
 
     # Reproject points to match the coordinate system of the raster.
     try:
