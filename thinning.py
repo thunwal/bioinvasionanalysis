@@ -7,13 +7,13 @@ import rasterio as rio
 from shapely.geometry import Polygon
 
 def thinning(gdb, workdir, presence, run, year_field, cost):
-    print(f"[{dt.now().strftime('%H:%M:%S')}] Reading raster properties...")
+    print(f"[{dt.now().strftime('%H:%M:%S')}] Reading cost raster properties...")
     desc = rio.open(os.path.join(workdir, cost))
     extent = desc.bounds
     xmin, ymin, xmax, ymax = extent.left, extent.bottom, extent.right, extent.top
     cell_size, cell_size_y = desc.res
     crs_code = desc.crs
-    print(f"[{dt.now().strftime('%H:%M:%S')}] Raster has CRS {crs_code} and cell size {cell_size} x {cell_size_y}.")
+    print(f"[{dt.now().strftime('%H:%M:%S')}] Cost raster has CRS {crs_code} and cell size {cell_size} x {cell_size_y}.")
 
     # Check if cell size width and height are the same. If not, stop script execution.
     # The thinning process relies on a fishnet with equal cell side length.
@@ -47,21 +47,13 @@ def thinning(gdb, workdir, presence, run, year_field, cost):
     thinned = gpd.sjoin(points, fishnet, how="inner", predicate="intersects")
 
     # Group points by fishnet cell and select the point with the minimum year in each group
-    print(f"[{dt.now().strftime('%H:%M:%S')}] Selecting presence locations with minimum year per cell...")
+    print(f"[{dt.now().strftime('%H:%M:%S')}] Selecting presence data with minimum year per cell...")
     thinned = thinned.groupby("index_right").apply(lambda group: group.loc[group[year_field].idxmin()])
 
     # Drop index and reset CRS (CRS information gets lost during sjoin or groupby)
     thinned.reset_index(drop=True, inplace=True)
-    thinned.set_crs(crs_string, inplace=True)
+    thinned.set_crs(crs_code, inplace=True)
 
-    # Save the thinned points to the working directory
-    # Target format is GeoPackage (*.gpkg) because GeoPandas cannot write to File GeoDatabase (*.gdb).
-    thinned.to_file(os.path.join(workdir, f"{presence}_{run}_thinned.gpkg"), layer=f"{presence}_{run}_thinned",
-                    driver="GPKG")
-
-    # Convert the GeoPackage file to a feature class in the File GeoDatabase using ArcPy.
-    arcpy.CopyFeatures_management(os.path.join(workdir, f"{presence}_{run}_thinned.gpkg", f"{presence}_{run}_thinned"),
-                                  os.path.join(gdb, f"{presence}_{run}_thinned"))
-
-    # Remove the GeoPackage file
-    os.remove(os.path.join(workdir, f"{presence}_{run}_thinned.gpkg"))
+    # Save the thinned points to the GeoPackage which specific to the script run
+    thinned.to_file(os.path.join(workdir, f"{presence}_{run}.gpkg"), layer=f"{presence}_{run}_thinned", driver="GPKG")
+    print(f"[{dt.now().strftime('%H:%M:%S')}] Thinned presence data saved to '{presence}_{run}.gpkg', layer '{presence}_{run}_thinned'.")
