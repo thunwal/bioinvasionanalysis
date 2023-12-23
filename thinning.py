@@ -3,16 +3,13 @@ from datetime import datetime as dt
 import geopandas as gpd
 import numpy as np
 import os
-import rasterio as rio
 from shapely.geometry import Polygon
 
-def thinning(workdir, presence, cost, run, year_field):
-    print(f"[{dt.now().strftime('%H:%M:%S')}] Reading cost raster properties...")
-    desc = rio.open(os.path.join(workdir, cost))
-    extent = desc.bounds
+def thinning(workdir_path, presence_name, cost, run, year_field):
+    extent = cost.bounds
     xmin, ymin, xmax, ymax = extent.left, extent.bottom, extent.right, extent.top
-    cell_size, cell_size_y = desc.res
-    crs_code = desc.crs
+    cell_size, cell_size_y = cost.res
+    crs_code = cost.crs
     print(f"[{dt.now().strftime('%H:%M:%S')}] Cost raster has CRS {crs_code} and cell size {cell_size} x {cell_size_y}.")
 
     # Check if cell size width and height are the same. If not, stop script execution.
@@ -22,7 +19,9 @@ def thinning(workdir, presence, cost, run, year_field):
 
     # Read presence data. Import the column specified in year_field only.
     print(f"[{dt.now().strftime('%H:%M:%S')}] Reading presence data...")
-    points = gpd.read_file(os.path.join(workdir, f"{presence}.gpkg"), driver="GPKG", layer=presence, include_fields=[year_field])
+    points = gpd.read_file(os.path.join(workdir_path, f"{presence_name}.gpkg"), driver="GPKG", layer=presence_name, include_fields=[year_field])
+    print(f"[{dt.now().strftime('%H:%M:%S')}] Presence data has CRS {points.crs} and {len(points.index)} rows, "
+        f"of which {len(points.dropna(subset=[year_field, 'geometry']).index)} rows with non-null year and geometry.")
 
     # Reproject points to match the coordinate system of the raster.
     try:
@@ -55,5 +54,7 @@ def thinning(workdir, presence, cost, run, year_field):
     thinned.set_crs(crs_code, inplace=True)
 
     # Save the thinned points to the GeoPackage which specific to the script run
-    thinned.to_file(os.path.join(workdir, f"{presence}_{run}.gpkg"), layer=f"{presence}_{run}_thinned", driver="GPKG")
-    print(f"[{dt.now().strftime('%H:%M:%S')}] Thinned presence data saved to '{presence}_{run}.gpkg', layer '{presence}_{run}_thinned'.")
+    thinned.to_file(os.path.join(workdir_path, f"{presence_name}_{run}.gpkg"), layer=f"{presence_name}_{run}_thinned", driver="GPKG")
+    print(f"[{dt.now().strftime('%H:%M:%S')}] Thinned presence data saved to '{presence_name}_{run}.gpkg', layer '{presence_name}_{run}_thinned'.")
+
+    return thinned

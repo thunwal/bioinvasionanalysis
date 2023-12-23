@@ -2,7 +2,7 @@ import arcpy
 from datetime import datetime as dt
 import os
 
-def distacc(gdb, presence, cost, run, year_field, start_year, end_year):
+def distacc(presence_thinned, cost, run, year_field, start_year, end_year):
     # Iterate through the specified range of years.
     # Note: end_year is not included in range, which fits our needs.
     for year in range(start_year, end_year, 1):
