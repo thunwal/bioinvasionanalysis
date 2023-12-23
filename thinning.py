@@ -1,4 +1,3 @@
-import arcpy
 from datetime import datetime as dt
 import geopandas as gpd
 import numpy as np
