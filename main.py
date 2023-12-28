@@ -2,8 +2,7 @@ from datetime import datetime as dt
 import os
 import rasterio as rio
 from thinning import thinning
-from distacc import distacc
-from optpaths import optpaths
+from shortestpaths_scipy_ndimage import shortestpaths
 
 # PARAMETERS ------------------------------------------------------------------
 workdir_path = r"C:\Daten\Dokumente\UNIGIS\ArcGIS Projekte\p_distanzanalyse"
@@ -18,12 +17,12 @@ end_year = 2023  # year of latest observation, or last year of analysis  # tbd: 
 # Read cost raster
 print(f"[{dt.now().strftime('%H:%M:%S')}] Loading cost raster from {os.path.join(workdir_path, cost_name)}...")
 cost = rio.open(os.path.join(workdir_path, cost_name))
+output_gpkg = os.path.join(workdir_path, f"{presence_name}_{run}.gpkg")
 
 # Execute functions
 # thinning() returns thinned presence data in GeoDataFrame, but also saves GPKG
 # -> tbd: enable skipping of the (potentially time-consuming) thinning step if GPKG is already there
 presence_thinned = thinning(workdir_path, presence_name, cost, run, year_field)
-
-distacc(presence_thinned, cost, run, year_field, start_year, end_year)
-
-optpaths(presence_thinned, run, year_field, start_year, end_year)
+shortestpaths(output_gpkg, presence_thinned, cost, year_field, start_year, end_year)
+#distacc(presence_thinned, cost, run, year_field, start_year, end_year)
+#optpaths(presence_thinned, run, year_field, start_year, end_year)
