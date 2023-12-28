@@ -17,12 +17,14 @@ end_year = 2023  # year of latest observation, or last year of analysis  # tbd: 
 # Read cost raster
 print(f"[{dt.now().strftime('%H:%M:%S')}] Loading cost raster from {os.path.join(workdir_path, cost_name)}...")
 cost = rio.open(os.path.join(workdir_path, cost_name))
-output_gpkg = os.path.join(workdir_path, f"{presence_name}_{run}.gpkg")
+out_gpkg = os.path.join(workdir_path, f"{presence_name}_{run}.gpkg")
+out_lyr_thinned = f"{presence_name}_{run}_thinned"
+out_lyr_paths = f"{presence_name}_{run}_paths"
 
 # Execute functions
 # thinning() returns thinned presence data in GeoDataFrame, but also saves GPKG
 # -> tbd: enable skipping of the (potentially time-consuming) thinning step if GPKG is already there
 presence_thinned = thinning(workdir_path, presence_name, cost, run, year_field)
-shortestpaths(output_gpkg, presence_thinned, cost, year_field, start_year, end_year)
+shortestpaths(out_gpkg, out_lyr_paths, presence_thinned, cost, year_field, start_year, end_year)
 #distacc(presence_thinned, cost, run, year_field, start_year, end_year)
 #optpaths(presence_thinned, run, year_field, start_year, end_year)

@@ -7,12 +7,16 @@ from skimage.graph import route_through_array
 from shapely.geometry import LineString, MultiLineString
 
 
-def shortestpaths(output_gpkg, presence_thinned, cost, year_field, start_year, end_year):
+def shortestpaths(out_gpkg, out_lyr_paths, presence_thinned, cost, year_field, start_year, end_year):
     # Initialize an empty list to store features
     features = []
-    # Read cost raster as array and mask NoData values
+    # Read cost raster as array
     cost_array = cost.read(1, masked=True)
-    
+    # Identify NoData cells
+    nodata_mask = np.ma.getmask(cost_array)
+    # Set NoData cells to np.inf
+    cost_array[nodata_mask] = np.inf
+
     # Iterate through the specified range of years.
     # start_year + 1 because no paths can be created in the first year.
     # end_year + 1 because range end is not included in range.
@@ -45,7 +49,6 @@ def shortestpaths(output_gpkg, presence_thinned, cost, year_field, start_year, e
                     'geometry': line_geometry,
                     'properties': {
                         'year_source': year,
-                        # 'year_destination': presence_thinned.iloc[i][year_field],  # this fetches wrong year information, fix later
                         'accumulated_cost': acc_cost
                     }
                 }
@@ -58,9 +61,9 @@ def shortestpaths(output_gpkg, presence_thinned, cost, year_field, start_year, e
     result_gdf.set_crs(cost.crs, inplace=True)
     
     # Save the GeoDataFrame to a GeoPackage
-    if os.path.exists(output_gpkg):
-        result_gdf.to_file(output_gpkg, layer=f"{presence_name}_{run}_paths", driver='GPKG', append="layer")
+    if os.path.exists(out_gpkg):
+        result_gdf.to_file(out_gpkg, layer=out_lyr_paths, driver="GPKG", append="layer")
     else:
-        result_gdf.to_file(output_gpkg, layer=f"{presence_name}_{run}_paths", driver='GPKG')
+        result_gdf.to_file(out_gpkg, layer=out_lyr_paths, driver="GPKG")
 
-    print(f"[{dt.now().strftime('%H:%M:%S')}] Least-cost paths saved to '{presence_name}_{run}.gpkg', layer '{presence_name}_{run}_paths'.")
+    print(f"[{dt.now().strftime('%H:%M:%S')}] Least-cost paths saved to {out_gpkg}, layer {out_lyr_paths}.")
