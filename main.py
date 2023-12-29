@@ -19,7 +19,7 @@ print(f"[{dt.now().strftime('%H:%M:%S')}] Loading cost raster from {os.path.join
 cost = rio.open(os.path.join(workdir_path, cost_name))
 out_gpkg = os.path.join(workdir_path, f"{presence_name}_{run}.gpkg")
 out_lyr_thinned = f"{presence_name}_{run}_thinned"
-out_lyr_paths = f"{presence_name}_{run}_paths"
+out_lyr_paths = f"{presence_name}_{run}_paths_new"
 
 # Execute functions
 # thinning() returns thinned presence data in GeoDataFrame, but also saves GPKG
