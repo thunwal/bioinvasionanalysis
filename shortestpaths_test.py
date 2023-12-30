@@ -19,10 +19,20 @@ mcp = MCP_Geometric(cost_array)
 # Create cumulative costs array and traceback array
 costs_array, traceback_array = mcp.find_costs(starts=source_coords, ends=dest_coords, find_all_ends=True)
 
+paths=np.empty(cost_array.shape)
+paths.fill(-1)
+
 # Identify paths
 for i in range(dest_coords_n):
     print("iteration:", i)
-    path = mcp.traceback(dest_coords[i,:])  # [(0, 0), (1, 1), (2, 2), (3, 3)]
-    print(path)
-    path_coords = np.array(path)  # [[0 0] [1 1] [2 2] [3 3]]
-    print(path_coords)
+    route = mcp.traceback(dest_coords[i,:])  # [(0, 0), (1, 1), (2, 2), (3, 3)]
+    print("route:")
+    print(route)
+    route_coords = np.array(route)  # [[0 0] [1 1] [2 2] [3 3]]
+    print("route_coords:")
+    print(route_coords)
+    for j in range(len(route)):
+        paths[route[j]] = i + 1
+
+print("paths:")
+print(paths)
