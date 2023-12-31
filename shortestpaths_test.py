@@ -31,8 +31,5 @@ for i in range(dest_coords_n):
     route_coords = np.array(route)  # [[0 0] [1 1] [2 2] [3 3]]
     print("route_coords:")
     print(route_coords)
-    for j in range(len(route)):
-        paths[route[j]] = i + 1
 
-print("paths:")
-print(paths)
+
