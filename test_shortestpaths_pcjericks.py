@@ -1,21 +1,16 @@
+import gdal, osr
 from skimage.graph import route_through_array
 import numpy as np
-import rasterio as rio
 
 
 def raster2array(rasterfn):
-    raster = rio.open(rasterfn)
-    # Read cost raster as array
-    array = raster.read(1, masked=True)
-    # Identify NoData cells
-    nodata_mask = np.ma.getmask(array)
-    # Set NoData cells to np.inf
-    array[nodata_mask] = np.inf
-
+    raster = gdal.Open(rasterfn)
+    band = raster.GetRasterBand(1)
+    array = band.ReadAsArray()
     return array
 
 def coord2pixelOffset(rasterfn,x,y):
-    raster = rio.open(rasterfn)
+    raster = gdal.Open(rasterfn)
     geotransform = raster.GetGeoTransform()
     originX = geotransform[0]
     originY = geotransform[3]
@@ -73,8 +68,8 @@ def main(CostSurfacefn,outputPathfn,startCoord,stopCoord):
 
 
 if __name__ == "__main__":
-    CostSurfacefn = r"C:\Daten\Dokumente\UNIGIS\ArcGIS Projekte\p_distanzanalyse\msculpturalis_sdm_clip_rev_scaled100.tif"
-    startCoord = (678884.82, 5441740.79)
-    stopCoord = (454359.45, 5161896.016)
-    outputPathfn = r"C:\Daten\Dokumente\UNIGIS\ArcGIS Projekte\p_distanzanalyse\test.tif"
+    CostSurfacefn = 'CostSurface.tif'
+    startCoord = (345387.871,1267855.277)
+    stopCoord = (345479.425,1267799.626)
+    outputPathfn = 'Path.tif'
     main(CostSurfacefn,outputPathfn,startCoord,stopCoord)
