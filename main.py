@@ -22,9 +22,12 @@ out_lyr_thinned = f"{presence_name}_{run}_thinned"
 out_lyr_paths = f"{presence_name}_{run}_paths"
 
 # Execute functions
-# thinning() returns thinned presence data in GeoDataFrame, but also saves GPKG
-# -> tbd: enable skipping of the (potentially time-consuming) thinning step if GPKG is already there
+# tbd: enable skipping of the (potentially time-consuming) thinning step if GPKG is already there (read from GPKG)?
 presence_thinned = thinning(workdir_path, presence_name, cost, run, year_field)
+
+# tbd: if open-source:
 paths(out_gpkg, out_lyr_paths, presence_thinned, cost, year_field, start_year, end_year)
+
+# tbd: if ArcGIS Pro:
 #distacc(presence_thinned, cost, run, year_field, start_year, end_year)
 #optpaths(presence_thinned, run, year_field, start_year, end_year)
