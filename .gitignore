@@ -216,3 +216,9 @@ po/*~
 
 # RStudio Connect folder
 rsconnect/
+
+#------------------
+# Custom
+#------------------
+
+*.pdf
