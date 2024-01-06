@@ -1,0 +1,224 @@
+---
+# title: "Aufgabe 2: Point Pattern Analysis"
+# author: "Christa Rohrbach"
+# date: "2023-03-25"
+# bibliography: references.bib
+# csl: harvard-educational-review.csl
+output:
+  bookdown::pdf_document2:
+    toc: false
+    number_sections: false
+    latex_engine: xelatex
+colorlinks: yes
+urlcolor: blue
+classoption: landscape
+header-includes:
+  \usepackage{fancyhdr,lastpage,multirow,caption}
+  \fancypagestyle{plain}{
+    \fancyhf{}
+    \fancyhead[L]{Notes on the effects of different cost raster input - SDM vs. reversed SDM}
+    \fancyhead[R]{Christa Rohrbach}
+    \fancyfoot[R]{\thepage\  / \pageref{LastPage}}
+  }
+  \pagestyle{plain}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+    echo = FALSE,
+    message = FALSE,
+    warning = FALSE
+)
+
+# Exponentialschreibweise erst ab 7-stelligen Zahlen
+options(scipen=6, digits=4)
+
+library(knitr)
+library(kableExtra)
+library(readr)
+library(cowplot)
+library(ggplot2)
+library(sf)
+library(terra)
+library(tidyterra)
+library(rnaturalearth)
+library(rnaturalearthdata)
+
+# rgdal, rgeos and maptools retire by the end of 2023! use sf, stars and terra!
+
+theme_set(theme_classic())
+theme_update(
+  panel.grid.major = element_line(colour = "transparent"),
+  plot.title = element_text(size=6),
+  #axis.title = element_text(size=10),
+  #legend.title = element_text(size=8),
+  axis.text = element_text(size=4),
+  #axis.text.x = element_text(angle = 45, hjust=1)
+  #panel.border = element_rect(color = "black", fill = NA, size = 0.1),
+  axis.ticks = element_line(linewidth = 0.1),
+  #axis.line.x = element_blank(),
+  #axis.line.y = element_blank(),
+  axis.line = element_line(linewidth = 0.1),
+  axis.title = element_blank(),
+  legend.title = element_text(size = 6),
+  legend.text = element_text(size = 4),
+  legend.key.size = unit(3, 'mm'),
+  legend.box.spacing = unit(0, 'mm')
+)
+```
+
+```{r settings, results='hide'}
+# Input data paths and configuration
+workdir <- "C:/Daten/Dokumente/UNIGIS/ArcGIS Projekte/p_distanzanalyse"
+presence_gpkg <- "msculpturalis_20240106.gpkg"
+presence_layer_name <- strsplit(presence_gpkg, "\\.")[[1]][1]
+cost_surface_name <- "msculpturalis_sdm_clip.tif"
+cost_surface_name_2 <- "msculpturalis_sdm_clip_rev.tif"
+paths_gpkg <- "msculpturalis_20240106_sdm.gpkg" 
+paths_gpkg_2 <- "msculpturalis_20240106_sdmrev.gpkg" 
+paths_layer_name <- "msculpturalis_20240106_sdm_paths"
+paths_layer_name_2 <- "msculpturalis_20240106_sdmrev_paths"
+quantile <- 0.96
+```
+
+```{r data, results='hide'}
+# Load data
+cost_surface <- rast(file.path(workdir, cost_surface_name))
+#NAflag(cost_surface) <- 0  # tbd: workaround to avoid NoData being plotted
+site_bbox <- ext(cost_surface)
+
+cost_surface_2 <- rast(file.path(workdir, cost_surface_name_2))
+#cost_surface_2 <- crop(cost_surface_2, site_bbox)  # tbd: was an attempt to crop second raster to extent of first, but same CRS needed
+#NAflag(cost_surface_2) <- 0  # tbd: workaround to avoid NoData being plotted
+
+presence <- st_read(file.path(workdir, presence_gpkg), layer = presence_layer_name)
+
+lcp <- st_read(file.path(workdir, paths_gpkg), layer = paths_layer_name)
+threshold <- quantile(lcp$accumulated_cost, quantile)
+lcp_sub <- lcp[lcp$accumulated_cost < threshold, ]
+
+lcp_2 <- st_read(file.path(workdir, paths_gpkg_2), layer = paths_layer_name_2)
+threshold_2 <- quantile(lcp_2$accumulated_cost, quantile)
+lcp_sub_2 <- lcp_2[lcp_2$accumulated_cost < threshold_2, ]
+
+world <- st_transform(ne_countries(scale = "medium", returnclass = "sf"), crs(cost_surface))
+countries <- st_crop(world, site_bbox)
+graticules <- st_graticule(x = countries)
+```
+
+# Notes on the effects of different cost raster input - SDM vs. reversed SDM
+
+**Left side:**  
+Cost raster *`r cost_surface_name`* with value range `r minmax(cost_surface)[1]`-`r minmax(cost_surface)[2]` and resulting least-cost paths.  
+The cost raster is the habitat suitability raster ("consensus map") published by [Lanner et al. (2022)](https://doi.org/10.1016/j.scitotenv.2022.154246).
+
+**Right side:**  
+Cost raster *`r cost_surface_name_2`* with value range `r minmax(cost_surface_2)[1]`-`r minmax(cost_surface_2)[2]` and resulting least-cost paths.  
+The cost raster is a reversed version of the habitat suitability raster ("consensus map") published by [Lanner et al. (2022)](https://doi.org/10.1016/j.scitotenv.2022.154246).
+
+**Methodology:**  
+Least-cost paths were computed using the [Python module skimage.graph (MCP_Geometric class)](https://scikit-image.org/docs/stable/api/skimage.graph.html), which applies a network-based algorithm allowing an 8-way movement from cell to cell.
+Least-cost paths exceeding the accumulated cost of the `r quantile` quantile are not shown in the maps.
+
+```{r basemap, results='hide'}
+# Create basemap
+basemap <- ggplot() +
+  geom_sf(data = countries, fill = "#f7f7f7", color = "gray", linewidth = 0.1) +
+  #coord_sf(datum = st_crs(cost_surface)) +
+  geom_sf(data = graticules, color = "gray", linetype = "dashed", linewidth = 0.1)
+```
+
+```{r rasterplots, results='hide', fig.keep='all', out.width='\\textwidth', out.height='\\textheight', fig.align='top'}
+# Create maps with cost rasters
+cost1 <- ggplot() +
+  geom_spatraster(data = cost_surface) +
+  scale_fill_viridis_c(na.value = "transparent", direction = -1) +
+  #geom_sf(data = countries, fill = "transparent", color = "gray", linewidth = 0.1) +
+  geom_sf(data = graticules, color = "gray", linetype = "dashed", linewidth = 0.1) +
+  coord_sf(expand = FALSE) +
+  ggtitle(cost_surface_name)
+
+cost2 <- ggplot() +
+  geom_spatraster(data = cost_surface_2) +
+  scale_fill_viridis_c(na.value = "transparent", direction = -1, name = "value (rev.)") +
+  #geom_sf(data = countries, fill = "transparent", color = "gray", linewidth = 0.1) +
+  geom_sf(data = graticules, color = "gray", linetype = "dashed", linewidth = 0.1) +
+  coord_sf(expand = FALSE) +  # this removes white space between map and axes
+  ggtitle(cost_surface_name_2)
+
+plot_grid(cost1, cost2)
+```
+
+```{r pathplots, results='hide', fig.keep='all', out.width='\\textwidth', out.height='\\textheight', fig.align='top'}
+# Create a list to store maps for each year
+all_maps_list <- list()
+
+# Loop through years 2009 to 2023
+for (year in 2009:2023) {
+  # Create a list to store maps for the current year
+  maps_list <- list()
+  
+  lcp1 <- basemap +
+    geom_sf(data = presence[presence$observation_year == year, ], size = 0.1, color = "red") +
+    geom_sf(data = lcp_sub[lcp_sub$year == year, ], linewidth = 0.1, color = "red") +
+    geom_sf(data = presence[presence$observation_year < year, ], size = 0.1, color = "#3b55ff") +
+    geom_sf(data = lcp_sub[lcp_sub$year < year, ], linewidth = 0.1, color = "#3b55ff") +
+    coord_sf(expand = FALSE) +
+    ggtitle(paste0(year, " | ", paths_layer_name, " | cost < ", quantile, " quantile (", threshold, ")"))
+  
+  lcp2 <- basemap +
+    geom_sf(data = presence[presence$observation_year == year, ], size = 0.1, color = "red") +
+    geom_sf(data = lcp_sub_2[lcp_sub_2$year == year, ], linewidth = 0.1, color = "red") +
+    geom_sf(data = presence[presence$observation_year < year, ], size = 0.1, color = "#3b55ff") +
+    geom_sf(data = lcp_sub_2[lcp_sub_2$year < year, ], linewidth = 0.1, color = "#3b55ff") +
+    coord_sf(expand = FALSE) +
+    ggtitle(paste0(year, " | ", paths_layer_name_2, " | cost < ", quantile, " quantile (", threshold_2, ")"))
+  
+  # Store the maps for the current year in the list
+  maps_list[[as.character(year)]] <- plot_grid(lcp1, lcp2, ncol = 2)
+  
+  # Store the map list for the current year in the overall list
+  all_maps_list[[as.character(year)]] <- maps_list
+}
+
+# Output the maps using cowplot
+plot_grid(
+  all_maps_list[[as.character(2009)]][[1]],
+  all_maps_list[[as.character(2010)]][[1]],
+  ncol = 1
+)
+plot_grid(
+  all_maps_list[[as.character(2011)]][[1]],
+  all_maps_list[[as.character(2012)]][[1]],
+  ncol = 1
+)
+plot_grid(
+  all_maps_list[[as.character(2013)]][[1]],
+  all_maps_list[[as.character(2014)]][[1]],
+  ncol = 1
+)
+plot_grid(
+  all_maps_list[[as.character(2015)]][[1]],
+  all_maps_list[[as.character(2016)]][[1]],
+  ncol = 1
+)
+plot_grid(
+  all_maps_list[[as.character(2017)]][[1]],
+  all_maps_list[[as.character(2018)]][[1]],
+  ncol = 1
+)
+plot_grid(
+  all_maps_list[[as.character(2019)]][[1]],
+  all_maps_list[[as.character(2020)]][[1]],
+  ncol = 1
+)
+plot_grid(
+  all_maps_list[[as.character(2021)]][[1]],
+  all_maps_list[[as.character(2022)]][[1]],
+  ncol = 1
+)
+plot_grid(
+  all_maps_list[[as.character(2023)]][[1]],
+  ncol = 1
+)
+```
