@@ -221,5 +221,9 @@ rsconnect/
 # Custom
 #------------------
 
+# Exclude R Project file
 *.Rproj
+
+# Exclude PDF and Word documents (created from Rmd documents)
 *.pdf
+*.docx
