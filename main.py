@@ -3,6 +3,8 @@ import os
 import rasterio as rio
 from thinning import thinning
 from leastcostpaths import paths
+from distacc import distacc
+from optpaths import optpaths
 
 # PARAMETERS ------------------------------------------------------------------
 workdir_path = r"C:\Daten\Dokumente\UNIGIS\ArcGIS Projekte\p_distanzanalyse"
@@ -23,11 +25,24 @@ out_lyr_paths = f"{presence_name}_{run}_paths"
 
 # Execute functions
 # tbd: enable skipping of the (potentially time-consuming) thinning step if GPKG is already there (read from GPKG)?
+# tbd: make sure ArcGIS workflow works with thinning (let ArcGIS read from GeoPackage?)
+
 presence_thinned = thinning(workdir_path, presence_name, cost, run, year_field)
 
-# tbd: if open-source:
+# =============================================================================
+# Option 1: scikit-image
+# =============================================================================
+
 paths(out_gpkg, out_lyr_paths, presence_thinned, cost, year_field, start_year, end_year)
 
-# tbd: if ArcGIS Pro:
-#distacc(presence_thinned, cost, run, year_field, start_year, end_year)
-#optpaths(presence_thinned, run, year_field, start_year, end_year)
+# =============================================================================
+# Option 2: ArcGIS Pro
+# =============================================================================
+
+# PARAMETERS ------------------------------------------------------------------
+# gdb = r"C:\Daten\Dokumente\UNIGIS\ArcGIS Projekte\p_distanzanalyse\p_distanzanalyse.gdb"
+# cost = "costs_without_barriers"
+# -----------------------------------------------------------------------------
+
+# distacc(gdb, presence_name, cost, run, year_field, start_year, end_year)
+# optpaths(gdb, presence_name, run, year_field, start_year, end_year)
