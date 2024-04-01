@@ -3,6 +3,12 @@ from datetime import datetime as dt
 import os
 
 def optpaths(gdb, presence, run, year_field, start_year, end_year):
+    # ArcPy environment settings
+    arcpy.env.parallelProcessingFactor = "100%"
+    arcpy.env.overwriteOutput = True
+    arcpy.env.addOutputsToMap = False
+    arcpy.env.autoCancelling = True
+
     # Iterate through the specified range of years.
     # start_year + 1 because no paths can be created in the first year.
     # end_year + 1 because range end is not included in range.
