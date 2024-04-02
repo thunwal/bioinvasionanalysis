@@ -24,7 +24,8 @@ cost = rio.open(os.path.join(workdir_path, cost_name))
 out_gpkg = os.path.join(workdir_path, f"{presence_name}_{run}.gpkg")
 out_lyr_thinned = f"{presence_name}_{run}_thinned"
 out_lyr_paths = f"{presence_name}_{run}_paths"
-out_lyr_paths_union = f"{presence_name}_{run}_paths_union"
+out_lyr_paths_tagged = f"{presence_name}_{run}_paths_tagged"
+out_lyr_paths_tagged = f"{presence_name}_{run}_paths_tagged"
 
 # Execute functions
 # tbd: enable skipping of the (potentially time-consuming) thinning step if GPKG is already there (read from GPKG)?
@@ -37,7 +38,7 @@ out_lyr_paths_union = f"{presence_name}_{run}_paths_union"
 # =============================================================================
 
 #paths(out_gpkg, out_lyr_paths, presence_thinned, cost, year_field, start_year, end_year)
-subpop(out_gpkg, out_lyr_paths, out_lyr_paths_union, quantile)
+subpop(out_gpkg, out_lyr_paths, out_lyr_paths_tagged, quantile)
 
 # =============================================================================
 # Option 2: ArcGIS Pro
