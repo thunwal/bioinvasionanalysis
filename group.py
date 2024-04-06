@@ -1,5 +1,7 @@
 from datetime import datetime as dt
+import os
 import numpy as np
+import pandas as pd
 import geopandas as gpd
 from shapely.geometry import MultiLineString, LineString
 
@@ -57,6 +59,65 @@ def assign_group_ids(gdf_original):
     gdf = gdf.drop(columns=['endpoints'])
 
     return gdf
+
+
+import geopandas as gpd
+
+
+def calculate_iqr_threshold(gpkg, lyr_paths):
+    # Load the layer from the GeoPackage
+    gdf = gpd.read_file(gpkg, layer=lyr_paths)
+
+    # Calculate Q1 and Q3
+    q1 = gdf['accumulated_cost'].quantile(0.25)
+    q3 = gdf['accumulated_cost'].quantile(0.75)
+    iqr = q3 - q1
+
+    # Define the upper bound using 1.5 * IQR
+    upper_bound = q3 + 1.5 * iqr
+
+    # Find the quantile of the upper bound
+    proportion_below_upper_bound = (gdf['accumulated_cost'] < upper_bound).mean()
+    #quantile_of_upper_bound = gdf['accumulated_cost'].quantile(upper_bound / gdf['accumulated_cost'].max())
+
+    print(f"[{dt.now().strftime('%H:%M:%S')}] Threshold for outlier removal: quantile {proportion_below_upper_bound}, cost {upper_bound}.")
+
+    return proportion_below_upper_bound, upper_bound
+
+
+def sensitivity_analysis(workdir_path, gpkg, lyr_paths, quantile_range):
+    """
+    Runs sensitivity analysis over a range of quantiles to determine the impact on subpopulation identification.
+
+    :param gdf: GeoDataFrame containing the paths and their costs.
+    :param quantile_range: Iterable of quantiles to test.
+    :return: DataFrame with quantiles and corresponding number of subpopulations.
+    """
+    gdf = gpd.read_file(gpkg, layer=lyr_paths, driver="GPKG")
+    results = []
+
+    for quantile in quantile_range:
+        print(f"[{dt.now().strftime('%H:%M:%S')}] Testing the {quantile} quantile...")
+
+        # Copy the GeoDataFrame to avoid modifying the original
+        gdf_copy = gdf.copy()
+
+        # Apply quantile threshold to filter paths
+        threshold = np.quantile(gdf_copy['accumulated_cost'], quantile)
+        gdf_filtered = gdf_copy[gdf_copy['accumulated_cost'] <= threshold]
+
+        # Assign subpopulation IDs to the filtered DataFrame
+        gdf_filtered = assign_group_ids(gdf_filtered)
+
+        # Count distinct subpopulation IDs
+        num_groups = gdf_filtered['group_id'].nunique()
+
+        # Record the results
+        results.append({'quantile': quantile, 'num_groups': num_groups})
+
+    pd.DataFrame(results).to_csv(os.path.join(workdir_path, 'sensitivity_analysis_results.csv'), index=False)
+
+    return pd.DataFrame(results)
 
 
 def group_paths(gpkg, lyr_paths, lyr_paths_grouped, quantile):

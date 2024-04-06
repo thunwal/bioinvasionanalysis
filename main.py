@@ -1,11 +1,12 @@
 from datetime import datetime as dt
 import os
 import rasterio as rio
+import numpy as np
 from thinning import thinning
 from leastcostpaths import paths
 from distacc import distacc
 from optpaths import optpaths
-from group import group_paths
+from group import sensitivity_analysis, group_paths, calculate_iqr_threshold
 
 # PARAMETERS ------------------------------------------------------------------
 workdir_path = r"C:\Daten\Dokumente\UNIGIS\ArcGIS Projekte\p_distanzanalyse"
@@ -30,14 +31,18 @@ out_lyr_paths_grouped = f"{presence_name}_{run}_paths_grouped"
 # tbd: enable skipping of the (potentially time-consuming) thinning step if GPKG is already there (read from GPKG)?
 # tbd: make sure ArcGIS workflow works with thinning (let ArcGIS read from GeoPackage?)
 
-presence_thinned = thinning(workdir_path, presence_name, cost, run, year_field)
+#presence_thinned = thinning(workdir_path, presence_name, cost, run, year_field)
 
 # =============================================================================
 # Option 1: scikit-image
 # =============================================================================
 
-paths(out_gpkg, out_lyr_paths, presence_thinned, cost, year_field, start_year, end_year)
-group_paths(out_gpkg, out_lyr_paths, out_lyr_paths_grouped, quantile)
+#paths(out_gpkg, out_lyr_paths, presence_thinned, cost, year_field, start_year, end_year)
+ideal_quantile, ideal_threshold = calculate_iqr_threshold(out_gpkg, out_lyr_paths)
+#quantile_range = np.arange(0.95, 1.00, 0.001)
+#analysis_results = sensitivity_analysis(workdir_path, out_gpkg, out_lyr_paths, quantile_range)
+#print(analysis_results)
+group_paths(out_gpkg, out_lyr_paths, out_lyr_paths_grouped, ideal_quantile)
 
 # =============================================================================
 # Option 2: ArcGIS Pro
