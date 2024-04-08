@@ -3,3 +3,4 @@ numpy
 rasterio
 scikit-image
 shapely
+pandas
