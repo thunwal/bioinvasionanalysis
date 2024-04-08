@@ -63,32 +63,31 @@ def assign_group_ids(gdf_original):
 
 def upper_outlier_fence(gpkg, lyr_paths):
     """
-    Returns the upper outlier fence as Q3 + 1.5 x IQR for accumulated cost as a quantile and an absolute value.
+    Returns the upper outlier fence (Q3 + 1.5 x IQR) for accumulated cost as a quantile and an absolute value.
     """
-    # Load the layer from the GeoPackage
     gdf = gpd.read_file(gpkg, layer=lyr_paths)
 
     # Calculate Q1 and Q3
-    q1 = gdf['accumulated_cost'].quantile(0.25)
-    q3 = gdf['accumulated_cost'].quantile(0.75)
-    iqr = q3 - q1
+    q1 = np.quantile(gdf['accumulated_cost'], 0.25)
+    q3 = np.quantile(gdf['accumulated_cost'], 0.75)
 
-    # Define the upper bound using 1.5 * IQR
+    # Define the upper outlier fence
+    iqr = q3 - q1
     upper_bound = q3 + 1.5 * iqr
 
-    # Find the quantile of the upper bound
-    proportion_below_upper_bound = (gdf['accumulated_cost'] < upper_bound).mean()
+    # Find rank of the outlier fence
+    upper_bound_quantile = (gdf['accumulated_cost'] < upper_bound).mean()
 
-    print(f"[{dt.now().strftime('%H:%M:%S')}] Upper outlier fence for accumulated cost (Q3 + 1.5 x IQR): cost {upper_bound}, quantile {proportion_below_upper_bound}.")
+    print(f"[{dt.now().strftime('%H:%M:%S')}] Upper outlier fence (Q3 + 1.5 x IQR) for accumulated cost: cost {upper_bound}, quantile {upper_bound_quantile}.")
 
-    return proportion_below_upper_bound, upper_bound
+    return upper_bound_quantile, upper_bound
 
 
 def sensitivity_analysis(workdir_path, gpkg, lyr_paths, quantile_range):
     """
     Runs sensitivity analysis over a range of upper outlier fences to determine the impact on the number of resulting groups.
     """
-    gdf = gpd.read_file(gpkg, layer=lyr_paths, driver="GPKG")
+    gdf = gpd.read_file(gpkg, layer=lyr_paths)
 
     print(f"[{dt.now().strftime('%H:%M:%S')}] Testing upper outlier fences from {quantile_range[0]} to {quantile_range[-1]} for accumulated cost...")
 
@@ -100,7 +99,7 @@ def sensitivity_analysis(workdir_path, gpkg, lyr_paths, quantile_range):
 
         # Apply quantile threshold to filter paths
         threshold = np.quantile(gdf_copy['accumulated_cost'], quantile)
-        gdf_filtered = gdf_copy[gdf_copy['accumulated_cost'] <= threshold]
+        gdf_filtered = gdf_copy[gdf_copy['accumulated_cost'] < threshold]
 
         # Assign subpopulation IDs to the filtered DataFrame
         gdf_filtered = assign_group_ids(gdf_filtered)
@@ -112,7 +111,7 @@ def sensitivity_analysis(workdir_path, gpkg, lyr_paths, quantile_range):
         results.append({'quantile': quantile, 'num_groups': num_groups})
 
     pd.DataFrame(results).to_csv(os.path.join(workdir_path, 'outlier_fence_test.csv'), index=False)
-    print(f"[{dt.now().strftime('%H:%M:%S')}] Results saved to {os.path.join(workdir_path, 'outlier_fence_test.csv')}.")
+    print(f"[{dt.now().strftime('%H:%M:%S')}] Result saved to {os.path.join(workdir_path, 'outlier_fence_test.csv')}.")
 
 
 def group_paths(gpkg, lyr_paths, lyr_paths_grouped, quantile):
@@ -120,14 +119,14 @@ def group_paths(gpkg, lyr_paths, lyr_paths_grouped, quantile):
     Assigns paths to groups of connected paths. This is done by ignoring outlier paths with a cost higher than
     the input quantile parameter and checking the connectivity of the remaining paths.
     """
-    paths = gpd.read_file(gpkg, layer=lyr_paths, driver="GPKG")
+    paths = gpd.read_file(gpkg, layer=lyr_paths)
     threshold = np.quantile(paths['accumulated_cost'], quantile)
-    paths_filtered = paths[paths['accumulated_cost'] <= threshold]
-    print(f"[{dt.now().strftime('%H:%M:%S')}] Paths with a cost <= {threshold} ({quantile} quantile) loaded.")
+    paths_filtered = paths[paths['accumulated_cost'] < threshold]
+    print(f"[{dt.now().strftime('%H:%M:%S')}] Paths with a cost < {threshold} ({quantile} quantile) loaded.")
 
     print(f"[{dt.now().strftime('%H:%M:%S')}] Grouping connected least-cost paths...")
     paths_filtered_grouped = assign_group_ids(paths_filtered)
 
     # Save the selected and tagged paths to the GeoPackage which specific to the script run
-    paths_filtered_grouped.to_file(gpkg, layer=lyr_paths_grouped, driver="GPKG")
-    print(f"[{dt.now().strftime('%H:%M:%S')}] Grouped least-cost paths saved to {gpkg}, layer {lyr_paths_grouped}.")
+    paths_filtered_grouped.to_file(gpkg, layer=lyr_paths_grouped)
+    print(f"[{dt.now().strftime('%H:%M:%S')}] Result saved to {gpkg}, layer {lyr_paths_grouped}.")
