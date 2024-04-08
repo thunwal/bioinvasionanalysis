@@ -61,10 +61,10 @@ def assign_group_ids(gdf_original):
     return gdf
 
 
-import geopandas as gpd
-
-
-def calculate_iqr_threshold(gpkg, lyr_paths):
+def upper_outlier_fence(gpkg, lyr_paths):
+    """
+    Returns the upper outlier fence as Q3 + 1.5 x IQR for accumulated cost as a quantile and an absolute value.
+    """
     # Load the layer from the GeoPackage
     gdf = gpd.read_file(gpkg, layer=lyr_paths)
 
@@ -78,27 +78,23 @@ def calculate_iqr_threshold(gpkg, lyr_paths):
 
     # Find the quantile of the upper bound
     proportion_below_upper_bound = (gdf['accumulated_cost'] < upper_bound).mean()
-    #quantile_of_upper_bound = gdf['accumulated_cost'].quantile(upper_bound / gdf['accumulated_cost'].max())
 
-    print(f"[{dt.now().strftime('%H:%M:%S')}] Threshold for outlier removal: quantile {proportion_below_upper_bound}, cost {upper_bound}.")
+    print(f"[{dt.now().strftime('%H:%M:%S')}] Upper outlier fence for accumulated cost (Q3 + 1.5 x IQR): cost {upper_bound}, quantile {proportion_below_upper_bound}.")
 
     return proportion_below_upper_bound, upper_bound
 
 
 def sensitivity_analysis(workdir_path, gpkg, lyr_paths, quantile_range):
     """
-    Runs sensitivity analysis over a range of quantiles to determine the impact on subpopulation identification.
-
-    :param gdf: GeoDataFrame containing the paths and their costs.
-    :param quantile_range: Iterable of quantiles to test.
-    :return: DataFrame with quantiles and corresponding number of subpopulations.
+    Runs sensitivity analysis over a range of upper outlier fences to determine the impact on the number of resulting groups.
     """
     gdf = gpd.read_file(gpkg, layer=lyr_paths, driver="GPKG")
+
+    print(f"[{dt.now().strftime('%H:%M:%S')}] Testing upper outlier fences from {quantile_range[0]} to {quantile_range[-1]} for accumulated cost...")
+
     results = []
 
     for quantile in quantile_range:
-        print(f"[{dt.now().strftime('%H:%M:%S')}] Testing the {quantile} quantile...")
-
         # Copy the GeoDataFrame to avoid modifying the original
         gdf_copy = gdf.copy()
 
@@ -115,16 +111,19 @@ def sensitivity_analysis(workdir_path, gpkg, lyr_paths, quantile_range):
         # Record the results
         results.append({'quantile': quantile, 'num_groups': num_groups})
 
-    pd.DataFrame(results).to_csv(os.path.join(workdir_path, 'sensitivity_analysis_results.csv'), index=False)
-
-    return pd.DataFrame(results)
+    pd.DataFrame(results).to_csv(os.path.join(workdir_path, 'outlier_fence_test.csv'), index=False)
+    print(f"[{dt.now().strftime('%H:%M:%S')}] Results saved to {os.path.join(workdir_path, 'outlier_fence_test.csv')}.")
 
 
 def group_paths(gpkg, lyr_paths, lyr_paths_grouped, quantile):
+    """
+    Assigns paths to groups of connected paths. This is done by ignoring outlier paths with a cost higher than
+    the input quantile parameter and checking the connectivity of the remaining paths.
+    """
     paths = gpd.read_file(gpkg, layer=lyr_paths, driver="GPKG")
     threshold = np.quantile(paths['accumulated_cost'], quantile)
-    paths_filtered = paths[paths['accumulated_cost'] < threshold]
-    print(f"[{dt.now().strftime('%H:%M:%S')}] Paths with a cost lower than {threshold} ({quantile} quantile) loaded.")
+    paths_filtered = paths[paths['accumulated_cost'] <= threshold]
+    print(f"[{dt.now().strftime('%H:%M:%S')}] Paths with a cost <= {threshold} ({quantile} quantile) loaded.")
 
     print(f"[{dt.now().strftime('%H:%M:%S')}] Grouping connected least-cost paths...")
     paths_filtered_grouped = assign_group_ids(paths_filtered)
