@@ -4,3 +4,4 @@ rasterio
 scikit-image
 shapely
 pandas
+statsmodels
