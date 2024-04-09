@@ -3,7 +3,8 @@ import os
 import numpy as np
 import pandas as pd
 import geopandas as gpd
-from shapely.geometry import MultiLineString, LineString
+from shapely.geometry import MultiLineString, LineString, Point
+import math
 
 
 def get_endpoints(geom):
@@ -114,12 +115,13 @@ def sensitivity_analysis(workdir_path, gpkg, lyr_paths, quantile_range):
     print(f"[{dt.now().strftime('%H:%M:%S')}] Result saved to {os.path.join(workdir_path, 'outlier_fence_test.csv')}.")
 
 
-def group_paths(gpkg, lyr_paths, lyr_paths_grouped, quantile):
+def group_paths(gpkg, paths, out_paths, quantile):
     """
     Assigns paths to groups of connected paths. This is done by ignoring outlier paths with a cost higher than
     the input quantile parameter and checking the connectivity of the remaining paths.
     """
-    paths = gpd.read_file(gpkg, layer=lyr_paths)
+    paths = gpd.read_file(gpkg, layer=paths)
+
     threshold = np.quantile(paths['accumulated_cost'], quantile)
     paths_filtered = paths[paths['accumulated_cost'] < threshold]
     print(f"[{dt.now().strftime('%H:%M:%S')}] Paths with a cost < {threshold} ({quantile} quantile) loaded.")
@@ -128,5 +130,37 @@ def group_paths(gpkg, lyr_paths, lyr_paths_grouped, quantile):
     paths_filtered_grouped = assign_group_ids(paths_filtered)
 
     # Save the selected and tagged paths to the GeoPackage which specific to the script run
-    paths_filtered_grouped.to_file(gpkg, layer=lyr_paths_grouped)
-    print(f"[{dt.now().strftime('%H:%M:%S')}] Result saved to {gpkg}, layer {lyr_paths_grouped}.")
+    paths_filtered_grouped.to_file(gpkg, layer=out_paths)
+    print(f"[{dt.now().strftime('%H:%M:%S')}] Grouped paths saved to {gpkg}, layer {out_paths}.")
+
+
+def group_points(gpkg, points, paths, out_points, cell_size):
+    """
+    Assigns presence points to groups using a spatial join (nearest).
+    Coordinate matching is not possible here because the path endpoints are centered on cost raster cells.
+    """
+    gdf_points = gpd.read_file(gpkg, layer=points)
+    gdf_points['point_id'] = gdf_points.index
+    gdf_paths = gpd.read_file(gpkg, layer=paths)
+    half_diagonal = (math.sqrt(2) * cell_size) / 2
+
+    # Extract endpoints of all paths and create a dataframe
+    print(f"[{dt.now().strftime('%H:%M:%S')}] Grouping points based on distance to grouped paths...")
+    endpoints = []
+
+    for index, path in gdf_paths.iterrows():
+        points = get_endpoints(path.geometry)
+        for point in points:
+            # Append endpoint geometry and group_id to the list
+            endpoints.append({'geometry': Point(point), 'group_id': path.group_id})
+
+    gdf_endpoints = gpd.GeoDataFrame(endpoints, crs=gdf_points.crs)
+
+    # Spatial join: assigns each point the group_id of the nearest endpoint
+    gdf_points = gpd.sjoin_nearest(gdf_points, gdf_endpoints[['geometry', 'group_id']], how='left', max_distance=half_diagonal, distance_col='dist')
+    gdf_points.drop_duplicates(subset=['point_id'], keep='first', inplace=True)
+    gdf_points.drop(columns=['index_right', 'point_id'], inplace=True)
+
+    # Save the selected and tagged paths to the GeoPackage which specific to the script run
+    gdf_points.to_file(gpkg, layer=out_points)
+    print(f"[{dt.now().strftime('%H:%M:%S')}] Grouped points saved to {gpkg}, layer {out_points}.")
