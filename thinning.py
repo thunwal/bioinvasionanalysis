@@ -50,10 +50,11 @@ def thinning(workdir_path, presence_name, cost, run, year_field):
 
     # Drop index and reset CRS (CRS information gets lost during sjoin or groupby)
     thinned.reset_index(drop=True, inplace=True)
+    thinned.drop(columns=['index_right'], inplace=True)
     thinned.set_crs(crs_code, inplace=True)
 
-    # Save the thinned points to the GeoPackage which specific to the script run
+    # Save the thinned points to the GeoPackage which is specific to the script run
     thinned.to_file(os.path.join(workdir_path, f"{presence_name}_{run}.gpkg"), layer=f"{presence_name}_{run}_thinned", driver="GPKG")
     print(f"[{dt.now().strftime('%H:%M:%S')}] Thinned presence data saved to '{presence_name}_{run}.gpkg', layer '{presence_name}_{run}_thinned'.")
 
-    return thinned
+    return thinned, cell_size
