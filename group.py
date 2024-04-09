@@ -17,12 +17,12 @@ def get_endpoints(geom):
         return [line.coords[0] for line in geom.geoms] + [line.coords[-1] for line in geom.geoms]
 
 
-def assign_group_ids(gdf_original):
+def assign_group_ids(lines):
     """
     Assigns an ID to each group of MultiLineStrings which share start and/or end points.
     """
     # Work with dataframe copy to avoid warning from Pandas
-    gdf = gdf_original.copy()
+    gdf = lines.copy()
 
     # Adds start and endpoint to the dataframe
     gdf['endpoints'] = gdf.geometry.apply(get_endpoints)
@@ -62,11 +62,11 @@ def assign_group_ids(gdf_original):
     return gdf
 
 
-def upper_outlier_fence(gpkg, lyr_paths):
+def upper_outlier_fence(in_gpkg, in_paths):
     """
     Returns the upper outlier fence (Q3 + 1.5 x IQR) for accumulated cost as a quantile and an absolute value.
     """
-    gdf = gpd.read_file(gpkg, layer=lyr_paths)
+    gdf = gpd.read_file(in_gpkg, layer=in_paths)
 
     # Calculate Q1 and Q3
     q1 = np.quantile(gdf['accumulated_cost'], 0.25)
@@ -79,18 +79,18 @@ def upper_outlier_fence(gpkg, lyr_paths):
     # Find rank of the outlier fence
     upper_bound_quantile = (gdf['accumulated_cost'] < upper_bound).mean()
 
-    print(f"[{dt.now().strftime('%H:%M:%S')}] Upper outlier fence (Q3 + 1.5 x IQR) for accumulated cost: cost {upper_bound}, quantile {upper_bound_quantile}.")
+    print(f"[{dt.now().strftime('%H:%M:%S')}] Upper outlier fence (Q3 + 1.5 x IQR) for accumulated cost is {upper_bound} ({upper_bound_quantile} quantile).")
 
     return upper_bound_quantile, upper_bound
 
 
-def sensitivity_analysis(workdir_path, gpkg, lyr_paths, quantile_range):
+def sensitivity_analysis(workdir_path, in_gpkg, in_paths, quantile_range):
     """
     Runs sensitivity analysis over a range of upper outlier fences to determine the impact on the number of resulting groups.
     """
-    gdf = gpd.read_file(gpkg, layer=lyr_paths)
+    gdf = gpd.read_file(in_gpkg, layer=in_paths)
 
-    print(f"[{dt.now().strftime('%H:%M:%S')}] Testing upper outlier fences from {quantile_range[0]} to {quantile_range[-1]} for accumulated cost...")
+    print(f"[{dt.now().strftime('%H:%M:%S')}] Testing upper outlier fences from {quantile_range[0]} quantile to {quantile_range[-1]} quantile...")
 
     results = []
 
@@ -112,40 +112,40 @@ def sensitivity_analysis(workdir_path, gpkg, lyr_paths, quantile_range):
         results.append({'quantile': quantile, 'num_groups': num_groups})
 
     pd.DataFrame(results).to_csv(os.path.join(workdir_path, 'outlier_fence_test.csv'), index=False)
-    print(f"[{dt.now().strftime('%H:%M:%S')}] Result saved to {os.path.join(workdir_path, 'outlier_fence_test.csv')}.")
+    print(f"[{dt.now().strftime('%H:%M:%S')}] Test results saved to {os.path.join(workdir_path, 'outlier_fence_test.csv')}.")
 
 
-def group_paths(gpkg, paths, out_paths, quantile):
+def group_paths(in_out_gpkg, in_paths, out_paths, quantile):
     """
     Assigns paths to groups of connected paths. This is done by ignoring outlier paths with a cost higher than
     the input quantile parameter and checking the connectivity of the remaining paths.
     """
-    paths = gpd.read_file(gpkg, layer=paths)
+    paths = gpd.read_file(in_out_gpkg, layer=in_paths)
 
     threshold = np.quantile(paths['accumulated_cost'], quantile)
     paths_filtered = paths[paths['accumulated_cost'] < threshold]
     print(f"[{dt.now().strftime('%H:%M:%S')}] Paths with a cost < {threshold} ({quantile} quantile) loaded.")
 
-    print(f"[{dt.now().strftime('%H:%M:%S')}] Grouping connected least-cost paths...")
+    print(f"[{dt.now().strftime('%H:%M:%S')}] Grouping least-cost paths by their connectivity...")
     paths_filtered_grouped = assign_group_ids(paths_filtered)
 
     # Save the selected and tagged paths to the GeoPackage which specific to the script run
-    paths_filtered_grouped.to_file(gpkg, layer=out_paths)
-    print(f"[{dt.now().strftime('%H:%M:%S')}] Grouped paths saved to {gpkg}, layer {out_paths}.")
+    paths_filtered_grouped.to_file(in_out_gpkg, layer=out_paths)
+    print(f"[{dt.now().strftime('%H:%M:%S')}] Grouped paths saved to {in_out_gpkg}, layer {out_paths}.")
 
 
-def group_points(gpkg, points, paths, out_points, cell_size):
+def group_points(in_out_gpkg, in_points, in_paths, out_points, cell_size):
     """
     Assigns presence points to groups using a spatial join (nearest).
     Coordinate matching is not possible here because the path endpoints are centered on cost raster cells.
     """
-    gdf_points = gpd.read_file(gpkg, layer=points)
+    gdf_points = gpd.read_file(in_out_gpkg, layer=in_points)
     gdf_points['point_id'] = gdf_points.index
-    gdf_paths = gpd.read_file(gpkg, layer=paths)
+    gdf_paths = gpd.read_file(in_out_gpkg, layer=in_paths)
     half_diagonal = (math.sqrt(2) * cell_size) / 2
 
     # Extract endpoints of all paths and create a dataframe
-    print(f"[{dt.now().strftime('%H:%M:%S')}] Grouping points based on distance to grouped paths...")
+    print(f"[{dt.now().strftime('%H:%M:%S')}] Assigning presence points to the groups formed by paths...")
     endpoints = []
 
     for index, path in gdf_paths.iterrows():
@@ -162,5 +162,5 @@ def group_points(gpkg, points, paths, out_points, cell_size):
     gdf_points.drop(columns=['index_right', 'point_id'], inplace=True)
 
     # Save the selected and tagged paths to the GeoPackage which specific to the script run
-    gdf_points.to_file(gpkg, layer=out_points)
-    print(f"[{dt.now().strftime('%H:%M:%S')}] Grouped points saved to {gpkg}, layer {out_points}.")
+    gdf_points.to_file(in_out_gpkg, layer=out_points)
+    print(f"[{dt.now().strftime('%H:%M:%S')}] Grouped points saved to {in_out_gpkg}, layer {out_points}.")

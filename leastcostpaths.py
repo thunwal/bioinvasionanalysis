@@ -1,17 +1,16 @@
 from datetime import datetime as dt
 import numpy as np
-import os
 import geopandas as gpd
 import rasterio as rio
 from skimage.graph import MCP_Geometric
 from shapely.geometry import LineString, MultiLineString
 
 
-def paths(out_gpkg, out_lyr_paths, presence_thinned, cost, year_field, start_year, end_year):
+def paths(out_gpkg, out_paths, in_points, in_cost, year_field, start_year, end_year):
     # Initialize an empty list to store features
     features = []
     # Read cost raster as array
-    cost_array = cost.read(1, masked=True)
+    cost_array = in_cost.read(1, masked=True)
     # Identify NoData cells
     nodata_mask = np.ma.getmask(cost_array)
     # Set NoData cells to infinite
@@ -24,14 +23,14 @@ def paths(out_gpkg, out_lyr_paths, presence_thinned, cost, year_field, start_yea
         print(f"[{dt.now().strftime('%H:%M:%S')}] Calculating least-cost paths for year {year}...")
 
         # Select known points from previous years
-        known_points = presence_thinned[presence_thinned[year_field] < year]['geometry']
+        known_points = in_points[in_points[year_field] < year]['geometry']
         known_coords = np.array(
-            [(rio.transform.rowcol(cost.transform, known_point.x, known_point.y)) for known_point in known_points])
+            [(rio.transform.rowcol(in_cost.transform, known_point.x, known_point.y)) for known_point in known_points])
 
         # Select new points from current year
-        new_points = presence_thinned[presence_thinned[year_field] == year]['geometry']
+        new_points = in_points[in_points[year_field] == year]['geometry']
         new_coords = np.array(
-            [(rio.transform.rowcol(cost.transform, new_point.x, new_point.y)) for new_point in new_points])
+            [(rio.transform.rowcol(in_cost.transform, new_point.x, new_point.y)) for new_point in new_points])
         new_coords_n = new_coords.shape[0]
 
         # Calculate accumulated costs to reach known points
@@ -49,7 +48,7 @@ def paths(out_gpkg, out_lyr_paths, presence_thinned, cost, year_field, start_yea
                 acc_cost = acc_cost_array[row_index][col_index]
 
                 # Create path geometry
-                line_strings = [LineString([cost.xy(coord[0], coord[1]) for coord in path])]
+                line_strings = [LineString([in_cost.xy(coord[0], coord[1]) for coord in path])]
                 line_geometry = MultiLineString(line_strings)
 
                 # Create feature with path geometry and attributes
@@ -57,7 +56,7 @@ def paths(out_gpkg, out_lyr_paths, presence_thinned, cost, year_field, start_yea
                 feature = {
                     'geometry': line_geometry,
                     'properties': {
-                        'year_new_point': year,
+                        'destination_year': year,
                         'accumulated_cost': acc_cost
                     }
                 }
@@ -70,8 +69,8 @@ def paths(out_gpkg, out_lyr_paths, presence_thinned, cost, year_field, start_yea
     
     # Create a GeoDataFrame from the list of features and set CRS
     result_gdf = gpd.GeoDataFrame.from_features(features)
-    result_gdf.set_crs(cost.crs, inplace=True)
+    result_gdf.set_crs(in_cost.crs, inplace=True)
     
     # Save the GeoDataFrame to a GeoPackage
-    result_gdf.to_file(out_gpkg, layer=out_lyr_paths)
-    print(f"[{dt.now().strftime('%H:%M:%S')}] Least-cost paths saved to {out_gpkg}, layer {out_lyr_paths}.")
+    result_gdf.to_file(out_gpkg, layer=out_paths)
+    print(f"[{dt.now().strftime('%H:%M:%S')}] Least-cost paths saved to {out_gpkg}, layer {out_paths}.")

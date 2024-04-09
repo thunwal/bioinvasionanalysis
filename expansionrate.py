@@ -5,14 +5,15 @@ import geopandas as gpd
 import statsmodels.api as sm
 
 
-def calculate_expansion_rate(workdir_path, source_gpkg, source_layer):
+def calculate_expansion_rate(workdir_path, in_gpkg, in_points):
     """
     Calculates the expansion rate for each group by regressing distance to the first point against time.
     """
-    gdf_points = gpd.read_file(source_gpkg, layer=source_layer)
+    gdf_points = gpd.read_file(in_gpkg, layer=in_points)
     regression_results = []
     plot_data = []
 
+    print(f"[{dt.now().strftime('%H:%M:%S')}] Calculating expansion rates for presence point groups...")
     for group_id, group in gdf_points.groupby('group_id'):
         # Identify the first occurrence
         first_point = group.loc[group['observation_year'].idxmin()]
