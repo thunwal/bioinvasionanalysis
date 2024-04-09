@@ -53,6 +53,7 @@ def paths(out_gpkg, out_lyr_paths, presence_thinned, cost, year_field, start_yea
                 line_geometry = MultiLineString(line_strings)
 
                 # Create feature with path geometry and attributes
+                # tbd: find a way to add the year of the source point
                 feature = {
                     'geometry': line_geometry,
                     'properties': {
@@ -72,9 +73,5 @@ def paths(out_gpkg, out_lyr_paths, presence_thinned, cost, year_field, start_yea
     result_gdf.set_crs(cost.crs, inplace=True)
     
     # Save the GeoDataFrame to a GeoPackage
-    if os.path.exists(out_gpkg):
-        result_gdf.to_file(out_gpkg, layer=out_lyr_paths, driver="GPKG", append="layer")
-    else:
-        result_gdf.to_file(out_gpkg, layer=out_lyr_paths, driver="GPKG")
-
+    result_gdf.to_file(out_gpkg, layer=out_lyr_paths)
     print(f"[{dt.now().strftime('%H:%M:%S')}] Least-cost paths saved to {out_gpkg}, layer {out_lyr_paths}.")
