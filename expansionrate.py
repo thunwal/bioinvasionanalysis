@@ -5,7 +5,7 @@ import geopandas as gpd
 import statsmodels.api as sm
 
 
-def calculate_expansion_rate(workdir_path, in_gpkg, in_points):
+def calculate_expansion_rate(in_gpkg, in_points, out_csv_rates, out_csv_rates_details):
     """
     Calculates the expansion rate for each group by regressing distance to the first point against time.
     """
@@ -41,8 +41,8 @@ def calculate_expansion_rate(workdir_path, in_gpkg, in_points):
                 'max_distance': subset['distance_to_first'].max()
             })
 
-    pd.DataFrame(regression_results).to_csv(os.path.join(workdir_path, 'expansion_rates_results.csv'), index=False)
-    print(f"[{dt.now().strftime('%H:%M:%S')}] Expansion rates saved to {os.path.join(workdir_path, 'expansion_rates_results.csv')}.")
+    pd.DataFrame(regression_results).to_csv(out_csv_rates, index=False)
+    print(f"[{dt.now().strftime('%H:%M:%S')}] Expansion rates saved to {out_csv_rates}.")
 
-    pd.DataFrame(plot_data).to_csv(os.path.join(workdir_path, 'expansion_rates_plot_data.csv'), index=False)
-    print(f"[{dt.now().strftime('%H:%M:%S')}] Raw data saved to {os.path.join(workdir_path, 'expansion_rates_plot_data.csv')}.")
+    pd.DataFrame(plot_data).to_csv(out_csv_rates_details, index=False)
+    print(f"[{dt.now().strftime('%H:%M:%S')}] Raw data saved to {out_csv_rates_details}.")

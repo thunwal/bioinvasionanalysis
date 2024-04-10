@@ -84,7 +84,7 @@ def upper_outlier_fence(in_gpkg, in_paths):
     return upper_bound_quantile, upper_bound
 
 
-def sensitivity_analysis(workdir_path, in_gpkg, in_paths, quantile_range):
+def sensitivity_analysis(in_gpkg, in_paths, out_csv_outlier_test, quantile_range):
     """
     Runs sensitivity analysis over a range of upper outlier fences to determine the impact on the number of resulting groups.
     """
@@ -111,8 +111,8 @@ def sensitivity_analysis(workdir_path, in_gpkg, in_paths, quantile_range):
         # Record the results
         results.append({'quantile': quantile, 'num_groups': num_groups})
 
-    pd.DataFrame(results).to_csv(os.path.join(workdir_path, 'outlier_fence_test.csv'), index=False)
-    print(f"[{dt.now().strftime('%H:%M:%S')}] Test results saved to {os.path.join(workdir_path, 'outlier_fence_test.csv')}.")
+    pd.DataFrame(results).to_csv(out_csv_outlier_test, index=False)
+    print(f"[{dt.now().strftime('%H:%M:%S')}] Test results saved to {out_csv_outlier_test}.")
 
 
 def group_paths(in_out_gpkg, in_paths, out_paths, quantile):
