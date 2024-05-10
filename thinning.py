@@ -3,7 +3,7 @@ import geopandas as gpd
 import numpy as np
 from shapely.geometry import Polygon
 
-def thinning(in_gpkg, in_points, in_cost, out_gpkg, out_points, year_field):
+def thinning(in_gpkg, in_points, in_cost, out_gpkg, out_points, out_points_thinned, year_field, location_field):
     extent = in_cost.bounds
     xmin, ymin, xmax, ymax = extent.left, extent.bottom, extent.right, extent.top
     cell_size, cell_size_y = in_cost.res
@@ -17,7 +17,7 @@ def thinning(in_gpkg, in_points, in_cost, out_gpkg, out_points, year_field):
 
     # Read presence data. Import the column specified in year_field only.
     print(f"[{dt.now().strftime('%H:%M:%S')}] Loading presence data from {in_gpkg}...")
-    points = gpd.read_file(in_gpkg, layer=in_points, include_fields=[year_field])
+    points = gpd.read_file(in_gpkg, layer=in_points, include_fields=[year_field,location_field])
     print(f"[{dt.now().strftime('%H:%M:%S')}] Presence data has CRS {points.crs} and {len(points.index)} rows, "
         f"of which {len(points.dropna(subset=[year_field, 'geometry']).index)} rows with non-null year and geometry.")
 
@@ -53,7 +53,8 @@ def thinning(in_gpkg, in_points, in_cost, out_gpkg, out_points, year_field):
     thinned.set_crs(crs_code, inplace=True)
 
     # Save the thinned points to the GeoPackage which is specific to the script run
-    thinned.to_file(out_gpkg, layer=out_points)
+    points.to_file(out_gpkg, layer=out_points)
+    thinned.to_file(out_gpkg, layer=out_points_thinned)
     print(f"[{dt.now().strftime('%H:%M:%S')}] Thinned presence points saved to '{out_gpkg}', layer '{out_points}'.")
 
     return thinned, cell_size
