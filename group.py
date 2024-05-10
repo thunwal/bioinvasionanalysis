@@ -21,7 +21,7 @@ def assign_group_ids(lines):
     """
     Assigns an ID to each group of MultiLineStrings which share start and/or end points.
     """
-    # Work with dataframe copy to avoid warning from Pandas
+    # Work with dataframe copy to avoid warning from GeoPandas
     gdf = lines.copy()
 
     # Adds start and endpoint to the dataframe
@@ -40,17 +40,17 @@ def assign_group_ids(lines):
         current_endpoints = set(untagged.at[first_untagged_idx, 'endpoints'])
 
         connected = {first_untagged_idx}
-        new_connections = True
+        more_to_check = True
 
-        while new_connections:
-            new_connections = False
+        while more_to_check:
+            more_to_check = False
             for idx, row in untagged.iterrows():
                 if idx not in connected:
                     # Check if any endpoint matches
                     if any(pt in current_endpoints for pt in row['endpoints']):
                         connected.add(idx)
                         current_endpoints.update(row['endpoints'])
-                        new_connections = True
+                        more_to_check = True
 
         # Assign the group ID to all connected features
         gdf.loc[list(connected), 'group_id'] = group_id
@@ -154,10 +154,11 @@ def group_points(in_out_gpkg, in_points, in_paths, out_points, cell_size):
             # Append endpoint geometry and group_id to the list
             endpoints.append({'geometry': Point(point), 'group_id': path.group_id})
 
-    gdf_endpoints = gpd.GeoDataFrame(endpoints, crs=gdf_points.crs)
+    gdf_endpoints = gpd.GeoDataFrame(endpoints, crs=gdf_paths.crs)
 
     # Spatial join: assigns each point the group_id of the nearest endpoint
     gdf_points = gpd.sjoin_nearest(gdf_points, gdf_endpoints[['geometry', 'group_id']], how='left', max_distance=half_diagonal, distance_col='dist')
+    # Drop duplicated points (duplication occurs when more than one path has an endpoint in the same cell)
     gdf_points.drop_duplicates(subset=['point_id'], keep='first', inplace=True)
     gdf_points.drop(columns=['index_right', 'point_id'], inplace=True)
 

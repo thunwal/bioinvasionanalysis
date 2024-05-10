@@ -9,7 +9,7 @@ from shapely.geometry import LineString, MultiLineString
 def paths(out_gpkg, out_paths, in_points, in_cost, year_field, start_year, end_year):
     # Initialize an empty list to store features
     features = []
-    # Read cost raster as array
+    # Read the first band of the cost raster
     cost_array = in_cost.read(1, masked=True)
     # Identify NoData cells
     nodata_mask = np.ma.getmask(cost_array)
