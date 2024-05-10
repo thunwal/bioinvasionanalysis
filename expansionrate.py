@@ -7,7 +7,7 @@ import statsmodels.api as sm
 
 def calculate_expansion_rate(in_gpkg, in_points, out_csv_rates, out_csv_rates_details):
     """
-    Calculates the expansion rate for each group by regressing distance to the first point against time.
+    Calculates the expansion rate for each group by regressing cumulative distance to the first point against time.
     """
     gdf_points = gpd.read_file(in_gpkg, layer=in_points)
     regression_results = []
@@ -22,9 +22,13 @@ def calculate_expansion_rate(in_gpkg, in_points, out_csv_rates, out_csv_rates_de
         # Calculate distances to the first point
         group['distance_to_first'] = group.geometry.distance(first_point_geom)
 
+        # Compute the cumulative maximum distance per year
+        group = group.sort_values(by='observation_year')
+        group['cumulative_max_distance'] = group['distance_to_first'].cummax()
+
         # Regression
         x = sm.add_constant(group['observation_year'])
-        y = group['distance_to_first']
+        y = group['cumulative_max_distance']
         model = sm.OLS(y, x).fit()
 
         regression_results.append({
@@ -38,7 +42,7 @@ def calculate_expansion_rate(in_gpkg, in_points, out_csv_rates, out_csv_rates_de
             plot_data.append({
                 'group_id': group_id,
                 'year': year,
-                'max_distance': subset['distance_to_first'].max()
+                'max_distance': subset['cumulative_max_distance'].max()
             })
 
     pd.DataFrame(regression_results).to_csv(out_csv_rates, index=False)
