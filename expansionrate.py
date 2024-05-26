@@ -34,7 +34,8 @@ def calculate_expansion_rate(in_gpkg, in_points, out_csv_rates, out_csv_rates_de
         regression_results.append({
             'group_id': group_id,
             'point_count': len(group),
-            'expansion_rate': model.params[1]  # Slope of the regression line
+            'expansion_rate': model.params[1],  # Slope of the regression line
+            'r2': model.rsquared  # R2 (coefficient of determination)
         })
 
         # Prepare plot data
