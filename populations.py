@@ -1,5 +1,4 @@
 from datetime import datetime as dt
-import os
 import numpy as np
 import pandas as pd
 import geopandas as gpd
@@ -86,7 +85,7 @@ def upper_outlier_fence(in_gpkg, in_paths):
 
 def sensitivity_analysis(in_gpkg, in_paths, out_csv_outlier_test, quantile_range):
     """
-    Runs sensitivity analysis over a range of upper outlier fences to determine the impact on the number of resulting groups.
+    Runs a sensitivity analysis over a range of thresholds (quantiles) to determine the impact on the number of resulting populations.
     """
     gdf = gpd.read_file(in_gpkg, layer=in_paths)
 
@@ -117,7 +116,7 @@ def sensitivity_analysis(in_gpkg, in_paths, out_csv_outlier_test, quantile_range
 
 def group_paths(in_out_gpkg, in_paths, out_paths, quantile):
     """
-    Assigns paths to groups of connected paths. This is done by ignoring outlier paths with a cost higher than
+    Assigns paths to populations. This is done by ignoring paths with an accumulated cost higher than
     the input quantile parameter and checking the connectivity of the remaining paths.
     """
     paths = gpd.read_file(in_out_gpkg, layer=in_paths)
@@ -136,8 +135,8 @@ def group_paths(in_out_gpkg, in_paths, out_paths, quantile):
 
 def group_points(in_out_gpkg, in_points, in_paths, out_points, cell_size):
     """
-    Assigns presence points to groups using a spatial join (nearest).
-    Coordinate matching is not possible here because the path endpoints are centered on cost raster cells.
+    Assigns presence points to populations using a spatial join (nearest).
+    Coordinate matching is not possible here because the path endpoints are centered on cost surface cells.
     """
     gdf_points = gpd.read_file(in_out_gpkg, layer=in_points)
     gdf_points['point_id'] = gdf_points.index

@@ -7,6 +7,9 @@ from shapely.geometry import LineString, MultiLineString
 
 
 def paths(out_gpkg, out_paths, in_points, in_cost, year_field, start_year, end_year):
+    """
+    Creates least-cost paths that connect each observation to the nearest earlier observation based on the least cost.
+    """
     # Initialize an empty list to store features
     features = []
     # Read the first band of the cost raster

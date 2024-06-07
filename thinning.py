@@ -3,7 +3,11 @@ import geopandas as gpd
 import numpy as np
 from shapely.geometry import Polygon
 
-def thinning(in_gpkg, in_points, in_cost, out_gpkg, out_points, out_points_thinned, year_field, location_field):
+def thin(in_gpkg, in_points, in_cost, out_gpkg, out_points, out_points_thinned, year_field, location_field):
+    """
+    Prepares presence data for further processing by projecting it to the cost surface CRS and reducing the
+    data to the resolution of the cost surface, retaining the earliest observation per cell.
+    """
     extent = in_cost.bounds
     xmin, ymin, xmax, ymax = extent.left, extent.bottom, extent.right, extent.top
     cell_size, cell_size_y = in_cost.res
@@ -15,7 +19,7 @@ def thinning(in_gpkg, in_points, in_cost, out_gpkg, out_points, out_points_thinn
     if cell_size != cell_size_y:
         raise Exception("Raster cells are required to have equal side lengths for the thinning procedure.")
 
-    # Read presence data. Import the column specified in year_field only.
+    # Read presence data. Import the columns specified in year_field and location_field only.
     print(f"[{dt.now().strftime('%H:%M:%S')}] Loading presence data from {in_gpkg}...")
     points = gpd.read_file(in_gpkg, layer=in_points, include_fields=[year_field,location_field])
     print(f"[{dt.now().strftime('%H:%M:%S')}] Presence data has CRS {points.crs} and {len(points.index)} rows, "
