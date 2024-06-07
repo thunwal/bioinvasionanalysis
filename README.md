@@ -1,78 +1,56 @@
 # bioinvasionanalysis
 
-> [!NOTE]\
-> This project is under development.
-
-
 ## About this project
+**This project is intended to support the analysis of the spatio-temporal dispersal dynamics of a potentially
+multiple-introduced non-native species without prior knowledge of population structure. Given a cost surface and 
+presence data, it delineates potentially distinct populations and calculates the expansion rate for each population.**
 
-This script is intended to support the analysis of the spatio-temporal dispersal dynamics of a non-native species.
-Given a cost raster and presence point data, it enables you to:
+After thinning the presence data to the raster resolution, retaining the earliest observation per cell, the script
+sequentially creates least-cost paths in annual time steps connecting each observation with the nearest earlier
+observation based on accumulated cost. High-cost paths are subsequently removed, based on a configurable threshold, to
+isolate groups of connected paths and nearby points (populations). For each population, the expansion rate is
+calculated by regressing the cumulative distance of observations to the first observation against time.
 
-- Reconstruct possible dispersal pathways.
-- Isolate potentially independent populations.
-- (work in progress) Calculate the annual expansion rate for each population.
-
-After thinning the presence data to the raster resolution, the script creates sequential least-cost paths 
-connecting each presence point with the least costly to reach presence point which was known in the previous year. 
-
-The costliest paths are subsequently removed to isolate groups of connected paths and points, and for each group of 
-presence points, the expansion rate is calculated by regressing accumulated distance against time.
-
+For the creation of least-cost paths I implement the *Graph* module of the
+[scikit-image](https://scikit-image.org/docs/stable/api/skimage.graph.html) package. I also provide an alternative
+solution for least-cost modelling based on ArcPy in this repository in the form of the two scripts `arcgis_distacc` and
+`arcgis_optpaths`, but these are not yet seamlessly integrated and outcommented for this reason. To use them, a valid
+ArcGIS Pro license is required.
 
 ## Future development
 
-- Finish expansion rate calculation
-- Real script parametrization
-- Parameter to choose between open-source and ArcPy least-cost modelling
-
+- Parameter to choose between scikit-image and ArcPy based least-cost modelling?
+- Add more sensitivity tests, e.g. for the number of observations per population?
+- ...let me know your thoughts!
 
 ## Setting up the environment
 
-The following explanations refer to PyCharm Community Edition.
+Create your own environment as you like.
+Make sure to install needed packages as to per the `requirements.txt` file (`pip install -f requirements.txt`).
 
-### If you only use the open-source part:
-
-Create your own environment as you like. Make sure to install needed packages as to per the `requirements.txt` file.
-
-### If you use the ArcPy part:
+### If you want to use ArcPy scripts:
 
 Clone the default `arcgispro-py3` environment as it is not possible to install packages to the default environment. 
 Follow [these](https://pro.arcgis.com/en/pro-app/3.0/arcpy/get-started/clone-an-environment.htm) steps.
 
-Add `Python.exe` from the newly created environment path as the project interpreter via 
-`Settings > Project > Python Interpreter > Add Interpreter > Add Local Interpreter > Virtualenv environment > Existing`.
-
-Install required packages using `Settings > Project > Python Interpreter` as to per the `requirements.txt` file.
-
+PyCharm users may proceed as follows (I can't provide instructions for other IDEs): Add `Python.exe` from the newly
+created environment path as the project interpreter via `Settings > Project > Python Interpreter > Add Interpreter > 
+Add Local Interpreter > Virtualenv environment > Existing`. Install required packages using `Settings > Project > 
+Python Interpreter` as to per the `requirements.txt` file.
 
 ## Input
 
-The following data is needed to run this script:
-
-- Presence data as point data in GPKG format with an attribute containing the year of observation.
-- Cost raster in GeoTIFF format containing the cost of moving through each cell.
+- Presence point data in GPKG format containing the year and place name of observation.
+- Cost surface in GeoTIFF format representing the cost of moving through each cell.
   - Note that the cells must have a square shape (equal side lengths).
-
 
 ## Output
 
-- `{run}.gpkg` Contains sequential least-cost paths and grouped presence data.
-- `{run}_expansion_rates_plot_data.csv` Data needed to regress distance against time.
-- `{run}_expansion_rates_results.csv` Expansion rates of all populations.
-- `{run}_sensitivity_test` Results after testing cost thresholds to isolate populations.
-
+- `{run}.gpkg` Sequential least-cost paths and presence data assigned to populations.
+- `{run}_cumulative_distances.csv` Cumulative distances per year for all populations.
+- `{run}_expansion_rates.csv` Expansion rates for all populations.
+- `{run}_sensitivity_test.csv` Sensitivity test of the threshold's effect on the number of populations.
 
 ## Running the script
 
-Enter your parameters in the first code block of `main.py` and run the script.
-
-Parameters:
-
-- `workdir_path` Working directory from where input is loaded from and output is written to.
-- `presence_name` File and layer name of your presence point data (GPKG).
-- `cost_name` File name of your cost raster (GeoTIFF).
-- `run` Distinct name for the script run. Existing data with the same name will be overwritten.
-- `year_field` Name of the presence data field containing the observation year.
-- `start_year` First year to be included in the analysis.
-- `end_year` Last year to be included in the analysis.
+Enter your parameters in `params.py` and run the `main.py` script.
