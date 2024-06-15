@@ -38,7 +38,7 @@ out_csv_cumdist = os.path.join(workdir_path, f"{run}_cumulative_distances.csv")
 # Standard workflow
 # =============================================================================
 
-print(f"[{dt.now().strftime('%H:%M:%S')}] Loading cost raster from {os.path.join(workdir_path, cost_name)}...")
+print(f"[{dt.now().strftime('%H:%M:%S')}] Loading cost raster from '{os.path.join(workdir_path, cost_name)}'...")
 in_cost = rio.open(os.path.join(workdir_path, cost_name))
 
 presence_thinned, cell_size = thin(in_gpkg, in_lyr_points, in_cost, out_gpkg, out_lyr_points, out_lyr_points_thinned, year_field, location_field)

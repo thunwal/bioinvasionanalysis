@@ -12,7 +12,7 @@ def expansion_rate(in_gpkg, in_points, out_csv_rates, out_csv_rates_details):
     regression_results = []
     plot_data = []
 
-    print(f"[{dt.now().strftime('%H:%M:%S')}] Calculating expansion rates for presence point groups...")
+    print(f"[{dt.now().strftime('%H:%M:%S')}] Calculating expansion rates for groups (populations)...")
     for group_id, group in gdf_points.groupby('group_id'):
         # Identify the first occurrence
         first_point = group.loc[group['observation_year'].idxmin()]
@@ -48,8 +48,8 @@ def expansion_rate(in_gpkg, in_points, out_csv_rates, out_csv_rates_details):
 
     # Save cumulative max. distance results
     pd.DataFrame(plot_data).to_csv(out_csv_rates_details, index=False)
-    print(f"[{dt.now().strftime('%H:%M:%S')}] Raw data saved to {out_csv_rates_details}.")
+    print(f"[{dt.now().strftime('%H:%M:%S')}] Raw data saved to '{out_csv_rates_details}'.")
 
     # Save regression results
     pd.DataFrame(regression_results).to_csv(out_csv_rates, index=False)
-    print(f"[{dt.now().strftime('%H:%M:%S')}] Expansion rates saved to {out_csv_rates}.")
+    print(f"[{dt.now().strftime('%H:%M:%S')}] Expansion rates saved to '{out_csv_rates}'.")
