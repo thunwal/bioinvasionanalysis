@@ -1,34 +1,53 @@
 # bioinvasionanalysis
 
 ## About this project
-**This project is intended to support the analysis of the spatio-temporal dispersal dynamics of a potentially
-multiple-introduced non-native species without prior knowledge of population structure. Given a cost surface and 
-presence data, it delineates potentially distinct populations and calculates the expansion rate for each population.**
+This Python project is designed to support the analysis of spatio-temporal dispersal dynamics of non-native 
+species and uncover multiple introductions. Given a cost surface and presence data, it delineates potentially distinct 
+populations and calculates the expansion rate for each population.
 
-After thinning the presence data to the raster resolution, retaining the earliest observation per cell, the script
-sequentially creates least-cost paths in annual time steps connecting each observation with the nearest earlier
-observation based on accumulated cost. High-cost paths are subsequently removed, based on a configurable threshold, to
-isolate groups of connected paths and nearby points (populations). For each population, the expansion rate is
-calculated by regressing the cumulative distance of observations to the first observation against time.
+The scripts performs the following steps:
 
-For the creation of least-cost paths I implement the *Graph* module of the
-[scikit-image](https://scikit-image.org/docs/stable/api/skimage.graph.html) package. I also provide an alternative
-solution for least-cost modelling based on ArcPy in this repository in the form of the two scripts `arcgis_distacc` and
-`arcgis_optpaths`, but these are not yet seamlessly integrated and outcommented for this reason. To use them, a valid
-ArcGIS Pro license is required.
+1. **Spatial thinning** of the presence data, retaining the earliest observation per cost surface cell
+2. **Sequential least-cost modelling**, connecting each observation with the nearest earlier observation based via least-cost path
+3. **Delineate populations** by removing high-cost paths from the result set, thus isolating groups of paths and points
+4. **Calculate expansion rates** for all populations using the distance regression method
+
+For creating least-cost paths, the *Graph* module from the
+[scikit-image](https://scikit-image.org/docs/stable/api/skimage.graph.html) package is used. An alternative solution
+based on ArcPy is also provided (`arcgis_distacc` and `arcgis_optpaths`), but these are not yet seamlessly integrated.
+A valid ArcGIS Pro license is required to use ArcPy.
 
 ## Future development
 
-- Parameter to choose between scikit-image and ArcPy based least-cost modelling?
-- Add more sensitivity tests, e.g. for the number of observations per population?
-- ...let me know your thoughts!
+- Add parameter to choose between scikit-image and ArcPy based least-cost modelling?
+- Add more output fields to the sensitivity test, e.g. the number of observations per population?
+- open to community suggestions and contributions
 
-## Setting up the environment
+## Getting started
 
-Create your own environment as you like.
-Make sure to install needed packages as to per the `requirements.txt` file (`pip install -f requirements.txt`).
+1. **Clone the repository**  
+   On Windows:
+    ```bash
+    cd c:\path\to\myprojects  # path were you want to save bioinvasionanalysis
+    git clone https://github.com/thunwal/bioinvasionanalysis.git  # downloads the repository
+    ```
 
-### If you want to use ArcPy scripts:
+2. **Create a virtual environment**  
+    On Windows:
+    ```bash
+    cd c:\path\to\myenvs  # path where you want to create the environment
+    python -m venv venv_bioinv  # creates an environment "venv_bioinv"
+    venv_bioinv\Scripts\activate  # activates the enviornment "venv_bioinv"
+    ```
+
+3. **Install required packages**  
+    On Windows:
+    ```bash
+    cd c:\path\to\myprojects\bioinvasionanalysis  # navigate to the repository
+    python -m pip install -r requirements.txt  # this text file contains the packages to be installed
+    ```
+
+## If you want to use ArcPy scripts
 
 Clone the default `arcgispro-py3` environment as it is not possible to install packages to the default environment. 
 Follow [these](https://pro.arcgis.com/en/pro-app/3.0/arcpy/get-started/clone-an-environment.htm) steps.
@@ -40,9 +59,9 @@ Python Interpreter` as to per the `requirements.txt` file.
 
 ## Input
 
-- Presence point data in GPKG format containing the year and place name of observation.
-- Cost surface in GeoTIFF format representing the cost of moving through each cell.
-  - Note that the cells must have a square shape (equal side lengths).
+- **Presence point data** in GPKG format containing the year and place name of observation.
+- **Cost surface** in GeoTIFF format representing the cost of moving through each cell.
+  - Note that the cells must have equal side lengths.
 
 ## Output
 
@@ -53,4 +72,8 @@ Python Interpreter` as to per the `requirements.txt` file.
 
 ## Running the script
 
-Enter your parameters in `params.py` and run the `main.py` script.
+1. Enter your parameters in `params.py`
+2. Run the `main.py` script:
+   ```bash
+   python c:\path\to\myprojects\bioinvasionanalysis\main.py
+   ```
