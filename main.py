@@ -51,7 +51,7 @@ if threshold is None:
 
 group_paths(out_gpkg, out_lyr_paths, out_lyr_paths_grouped, threshold)
 group_points(out_gpkg, out_lyr_points, out_lyr_paths_grouped, out_lyr_points_grouped, cell_size)
-expansion_rate(out_gpkg, out_lyr_points_grouped, out_csv_rates, out_csv_cumdist)
+expansion_rate(out_gpkg, out_lyr_points_grouped, out_csv_rates, out_csv_cumdist, year_field)
 
 # =============================================================================
 # ArcGIS Pro based creation of least-cost paths
