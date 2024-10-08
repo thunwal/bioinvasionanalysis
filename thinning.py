@@ -24,6 +24,7 @@ def thin(in_gpkg, in_points, in_cost, out_gpkg, out_points, out_points_thinned, 
     points = gpd.read_file(in_gpkg, layer=in_points, include_fields=[year_field,location_field])
     print(f"[{dt.now().strftime('%H:%M:%S')}] Presence data has CRS {points.crs} and {len(points.index)} rows, "
         f"of which {len(points.dropna(subset=[year_field, 'geometry']).index)} rows with non-null year and geometry.")
+    points.dropna(subset=[year_field, 'geometry'])
 
     # Reproject points to match the coordinate system of the raster.
     try:
