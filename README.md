@@ -1,14 +1,14 @@
 # bioinvasionanalysis
 
 ## About this project
-This Python project is designed to support the analysis of spatio-temporal dispersal dynamics of non-native 
-species and uncover multiple introductions. Given a cost surface and presence data, it delineates potentially distinct 
-populations and calculates the expansion rate for each population.
+This Python project is designed to support the analysis of the spatio-temporal dispersal dynamics of a species spreading 
+outside of its native range and uncover multiple introductions. Given a cost surface and presence data, it delineates 
+potentially distinct populations and calculates the expansion rate for each population.
 
 The scripts performs the following steps:
 
 1. **Spatial thinning** of the presence data, retaining the earliest observation per cost surface cell
-2. **Sequential least-cost modelling**, connecting each observation with the nearest earlier observation based via least-cost path
+2. **Sequential least-cost modelling**, connecting each observation with the nearest earlier observation via least-cost path
 3. **Delineate populations** by removing high-cost paths from the result set, thus isolating groups of paths and points
 4. **Calculate expansion rates** for all populations using the distance regression method
 
