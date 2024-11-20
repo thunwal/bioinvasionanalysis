@@ -41,7 +41,7 @@ out_csv_cumdist = os.path.join(workdir_path, f"{run}_cumulative_distances.csv")
 print(f"[{dt.now().strftime('%H:%M:%S')}] Loading cost raster from '{os.path.join(workdir_path, cost_name)}'...")
 in_cost = rio.open(os.path.join(workdir_path, cost_name))
 
-presence_thinned, cell_size = thin(in_gpkg, in_lyr_points, in_cost, out_gpkg, out_lyr_points, out_lyr_points_thinned, year_field, location_field)
+presence_thinned, cell_size = thin(in_gpkg, in_lyr_points, in_cost, out_gpkg, out_lyr_points, out_lyr_points_thinned, year_field, start_year, end_year, location_field)
 paths(out_gpkg, out_lyr_paths, presence_thinned, in_cost, year_field, start_year, end_year)
 outlier_quantile, outlier_fence = upper_outlier_fence(out_gpkg, out_lyr_paths)
 sensitivity_analysis(out_gpkg, out_lyr_paths, out_csv_sensitivity_test, np.arange(outlier_quantile, 1.00, 0.001))
