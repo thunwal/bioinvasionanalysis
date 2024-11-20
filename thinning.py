@@ -3,7 +3,7 @@ import geopandas as gpd
 import numpy as np
 from shapely.geometry import Polygon
 
-def thin(in_gpkg, in_points, in_cost, out_gpkg, out_points, out_points_thinned, year_field, location_field):
+def thin(in_gpkg, in_points, in_cost, out_gpkg, out_points, out_points_thinned, year_field, start_year, end_year, location_field):
     """
     Prepares presence data for further processing by projecting it to the cost surface CRS and reducing the
     data to the resolution of the cost surface, retaining the earliest observation per cell.
@@ -22,6 +22,7 @@ def thin(in_gpkg, in_points, in_cost, out_gpkg, out_points, out_points_thinned, 
     # Read presence data. Import the columns specified in year_field and location_field only.
     print(f"[{dt.now().strftime('%H:%M:%S')}] Loading presence data from '{in_gpkg}'...")
     points = gpd.read_file(in_gpkg, layer=in_points, include_fields=[year_field,location_field])
+    points = points[(points[year_field] >= start_year) & (points[year_field] <= end_year)]
     print(f"[{dt.now().strftime('%H:%M:%S')}] Presence data has CRS {points.crs} and {len(points.index)} rows, "
         f"of which {len(points.dropna(subset=[year_field, 'geometry']).index)} rows with non-null year and geometry.")
     points.dropna(subset=[year_field, 'geometry'])
