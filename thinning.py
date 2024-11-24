@@ -1,7 +1,7 @@
 from datetime import datetime as dt
 import geopandas as gpd
 import numpy as np
-from shapely.geometry import Polygon
+from shapely.geometry import Polygon, box
 
 def thin(in_gpkg, in_points, in_cost, out_gpkg, out_points, out_points_thinned, year_field, start_year, end_year, location_field):
     """
@@ -19,7 +19,7 @@ def thin(in_gpkg, in_points, in_cost, out_gpkg, out_points, out_points_thinned, 
     if cell_size != cell_size_y:
         raise Exception("Raster cells are required to have equal side lengths for the thinning procedure.")
 
-    # Read presence data. Import the columns specified in year_field and location_field only.
+    # Read presence data. Import the columns specified in year_field and location_field only
     print(f"[{dt.now().strftime('%H:%M:%S')}] Loading presence data from '{in_gpkg}'...")
     points = gpd.read_file(in_gpkg, layer=in_points, include_fields=[year_field,location_field])
     points = points[(points[year_field] >= start_year) & (points[year_field] <= end_year)]
@@ -27,12 +27,17 @@ def thin(in_gpkg, in_points, in_cost, out_gpkg, out_points, out_points_thinned, 
         f"of which {len(points.dropna(subset=[year_field, 'geometry']).index)} rows with non-null year and geometry.")
     points.dropna(subset=[year_field, 'geometry'])
 
-    # Reproject points to match the coordinate system of the raster.
+    # Reproject points to match the coordinate system of the raster
     try:
         points = points.to_crs(crs_code)
         print(f"[{dt.now().strftime('%H:%M:%S')}] Projected presence data to {crs_code}.")
     except Exception as e:
         raise Exception(f"[{dt.now().strftime('%H:%M:%S')}] Failed to project presence data to {crs_code}.") from e
+
+    # Filter points to match the extent of the raster
+    raster_bbox = box(xmin, ymin, xmax, ymax)
+    points = points[points.geometry.within(raster_bbox)]
+    print(f"[{dt.now().strftime('%H:%M:%S')}] Applied filter to include presence data within raster extent only.")
 
     # Save the imported points to the GeoPackage which is specific to the script run
     points.to_file(out_gpkg, layer=out_points)

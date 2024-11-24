@@ -34,10 +34,7 @@ out_csv_sensitivity_test = os.path.join(workdir_path, f"{run}_sensitivity_test.c
 out_csv_rates = os.path.join(workdir_path, f"{run}_expansion_rates.csv")
 out_csv_cumdist = os.path.join(workdir_path, f"{run}_cumulative_distances.csv")
 
-# =============================================================================
-# Standard workflow
-# =============================================================================
-
+# Call functions
 print(f"[{dt.now().strftime('%H:%M:%S')}] Loading cost raster from '{os.path.join(workdir_path, cost_name)}'...")
 in_cost = rio.open(os.path.join(workdir_path, cost_name))
 
@@ -52,16 +49,3 @@ if threshold is None:
 group_paths(out_gpkg, out_lyr_paths, out_lyr_paths_grouped, threshold)
 group_points(out_gpkg, out_lyr_points, out_lyr_paths_grouped, out_lyr_points_grouped, cell_size)
 expansion_rate(out_gpkg, out_lyr_points_grouped, out_csv_rates, out_csv_cumdist, year_field)
-
-# =============================================================================
-# ArcGIS Pro based creation of least-cost paths
-# Note: currently not integrated with the other scripts, hence outcommented.
-# =============================================================================
-
-# PARAMETERS ------------------------------------------------------------------
-# gdb = r"C:\...\myproject.gdb"  # GDB path
-# cost = "mylayer"  # name of a raster layer inside the GDB
-# -----------------------------------------------------------------------------
-
-# distacc(gdb, presence_name, cost, run, year_field, start_year, end_year)
-# optpaths(gdb, presence_name, run, year_field, start_year, end_year)
