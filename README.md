@@ -1,26 +1,65 @@
 # bioinvasionanalysis
 
 ## About this project
-This Python project is designed to support the analysis of the spatio-temporal dispersal dynamics of a species spreading 
-outside of its native range and uncover multiple introductions. Given a cost surface and presence data, it delineates 
-potentially distinct populations and calculates the expansion rate for each population.
 
-The scripts performs the following steps:
+This Python project aims to support the analysis of the **expansion dynamics** of non-native species by employing a 
+process-oriented and spatially explicit approach. On the basis of observation data and a cost surface, 
+(1) **sequential least-cost modelling** is used to reconstruct the spread with least-cost paths in annual time steps, 
+(2) **distinct populations** are delineated by excluding paths with high accumulated cost, and
+(3) **expansion rates** are calculated for all delineated populations using the distance regression method. 
 
-1. **Spatial thinning** of the presence data, retaining the earliest observation per cost surface cell
-2. **Sequential least-cost modelling**, connecting each observation with the nearest earlier observation via least-cost path
-3. **Delineate populations** by removing high-cost paths from the result set, thus isolating groups of paths and points
-4. **Calculate expansion rates** for all populations using the distance regression method
+This project is published as part of the scientific publication:
 
-For creating least-cost paths, the *Graph* module from the
-[scikit-image](https://scikit-image.org/docs/stable/api/skimage.graph.html) package is used.
+> Rohrbach, Christa; Wallentin, Gudrun; Bila Dubaić, Jovana; Lanner, Julia (2024). *Leveraging sequential least-cost 
+> modelling to uncover multiple introductions: a case study of an invasive wild bee species.* [in preparation]
+
+## Workflow overview
+
+1. **Input data preparation** *(not part of this project)*  
+   - Observation records (GPKG file) and cost surface (GeoTIFF file).  
+
+2. **Define the parameters in `params.py`**  
+   - Working directory
+   - Input data
+   - Analysis period
+   - Accumulated cost threshold (expressed as quantile) for population delineation
+   - Name for the script run (used to name output files)
+
+3. **Run `main.py`**  
+   - This script will run all required modules and generate output files.
+
+4. **Verify the results in your favourite tools**
+   - `{run}.gpkg` Least-cost paths and observation data assigned to populations (GPKG file)
+   - `{run}_cumulative_distances.csv` Cumulative distances for all populations and years (CSV file)
+   - `{run}_expansion_rates.csv` Expansion rates for all populations (CSV file)
+   - `{run}_sensitivity_test.csv` Sensitivity test (effect of accumulated cost threshold on number of populations) (CSV file)
+
+For more information on the methodology, please refer to the associated manuscript.
 
 ## Future development
 
 - add demo data
-- add Jupyter notebook which supports the evaluation of results
+- add Jupyter notebook for interactive exploration of results
 - add more output fields to the sensitivity test, e.g. the number of observations per population?
 - open to community suggestions and contributions
+
+## Input data
+
+- **Observation data**:  
+   Format: Point data (GeoPackage, GPKG)  
+   For analysis and output, the data will be projected to the coordinate reference system of the cost surface.
+   Required fields (field names can be configured in `params.py`):  
+
+   | Field      | Description                      | Example        |  
+   |------------|----------------------------------|----------------|  
+   | `year`     | Year of observation              | 2020           |  
+   | `location` | Name or code of location         | Austria (or: Vienna, AT) |  
+   | `geometry` | Point geometry                   | POINT(16.37 48.21) |
+
+- **Cost surface**:
+  - Format: Raster (GeoTIFF)
+  - The values represent the cost of moving through the landscape.
+  - Note that the cells must have equal side lengths.
 
 ## Getting started
 
@@ -46,22 +85,12 @@ For creating least-cost paths, the *Graph* module from the
     python -m pip install -r requirements.txt  # this text file contains the packages to be installed
     ```
 
-## Input
-
-- **Presence point data** in GPKG format containing the year and place name of observation.
-- **Cost surface** in GeoTIFF format representing the cost of moving through each cell.
-  - Note that the cells must have equal side lengths.
-
-## Output
-
-- `{run}.gpkg` Sequential least-cost paths and presence data assigned to populations.
-- `{run}_cumulative_distances.csv` Cumulative distances per year for all populations.
-- `{run}_expansion_rates.csv` Expansion rates for all populations.
-- `{run}_sensitivity_test.csv` Sensitivity test of the threshold's effect on the number of populations.
-
 ## Running the script
 
 1. Enter your parameters in `params.py`
+   - Refer to the explanations in `params.py`.
+   - For the first exploratory run, you might want to start with an arbitrary `threshold` of, e.g., 0.95, and then 
+     consult the sensitivity test results and the population data to identify a suitable threshold.
 2. Run the `main.py` script:
    ```bash
    python c:\path\to\myprojects\bioinvasionanalysis\main.py

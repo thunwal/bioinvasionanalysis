@@ -161,6 +161,6 @@ def group_points(in_out_gpkg, in_points, in_paths, out_points, cell_size):
     gdf_points.drop_duplicates(subset=['point_id'], keep='first', inplace=True)
     gdf_points.drop(columns=['index_right', 'point_id'], inplace=True)
 
-    # Save the selected and tagged paths to the GeoPackage which specific to the script run
+    # Save the selected and tagged paths to the GeoPackage which is specific to the script run
     gdf_points.to_file(in_out_gpkg, layer=out_points)
     print(f"[{dt.now().strftime('%H:%M:%S')}] Grouped observations saved to '{in_out_gpkg}', layer '{out_points}'.")
