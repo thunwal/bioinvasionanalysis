@@ -1,12 +1,11 @@
 import params
 import os
 import rasterio as rio
-import numpy as np
 from datetime import datetime as dt
-from thinning import thin
-from leastcostpaths import paths
-from populations import group_paths, group_points, upper_outlier_fence, sensitivity_analysis
-from expansionrate import expansion_rate
+from src.thinning import thin
+from src.leastcostpaths import paths
+from src.populations import group_paths, group_points, upper_outlier_fence
+from src.expansionrate import expansion_rate
 #from arcgis_distacc import distacc
 #from arcgis_optpaths import optpaths
 
@@ -41,7 +40,7 @@ in_cost = rio.open(os.path.join(workdir_path, cost_name))
 presence_thinned, cell_size = thin(in_gpkg, in_lyr_points, in_cost, out_gpkg, out_lyr_points, out_lyr_points_thinned, year_field, start_year, end_year, location_field)
 paths(out_gpkg, out_lyr_paths, presence_thinned, in_cost, year_field, start_year, end_year)
 outlier_quantile, outlier_fence = upper_outlier_fence(out_gpkg, out_lyr_paths)
-sensitivity_analysis(out_gpkg, out_lyr_paths, out_csv_sensitivity_test, np.arange(outlier_quantile, 1.00, 0.001))
+#sensitivity_analysis(out_gpkg, out_lyr_paths, out_csv_sensitivity_test, np.arange(outlier_quantile, 1.00, 0.001))
 
 if threshold is None:
     threshold = outlier_quantile
