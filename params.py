@@ -19,7 +19,6 @@ presence_name = "imexicana_20241227.gpkg"
 year_field = "year"
 # Free text field intended to contain the location of a point.
 # Currently not actually used by this project, but will be included in the output data.
-# tbd ungültiger Feldname führt nicht zu Fehler?!
 location_field = "countryCode"
 # First year to be analyzed (usually the year of the first observation)
 start_year = 1993

@@ -25,11 +25,17 @@ def expansion_rate(in_gpkg, in_points, out_csv_rates, out_csv_rates_details, yea
         group = group.sort_values(by=year_field)
         group['cumulative_max_distance'] = group['distance_to_first'].cummax()
 
+        # Calculate stats
+        annual_counts = group.groupby(year_field).size()
+        median_observations_per_year = annual_counts.median()
+        min_year = group[year_field].min()
+        max_year = group[year_field].max()
+
         # Append result to list
         for year, subset in group.groupby(year_field):
             plot_data.append({
                 'group_id': group_id,
-                'year': year,
+                'year': int(year),
                 'max_distance': subset['cumulative_max_distance'].max()
             })
 
@@ -41,9 +47,12 @@ def expansion_rate(in_gpkg, in_points, out_csv_rates, out_csv_rates_details, yea
         # Append result to list
         regression_results.append({
             'group_id': group_id,
+            'min_year': int(min_year),
+            'max_year': int(max_year),
             'point_count': len(group),
-            'expansion_rate': model.params[1],  # Slope of the regression line
-            'r2': model.rsquared  # R2 (coefficient of determination)
+            'median_points_per_year': median_observations_per_year,
+            'expansion_rate': model.params.iloc[1],  # Slope of the regression line
+            'r2': model.rsquared  # Model strength (coefficient of determination)
         })
 
     # Save cumulative max. distance results
@@ -55,4 +64,4 @@ def expansion_rate(in_gpkg, in_points, out_csv_rates, out_csv_rates_details, yea
     print(f"[{dt.now().strftime('%H:%M:%S')}] Expansion rates saved to '{out_csv_rates}'.")
 
     # Return dataframes (currently only needed for the usage in Jupyter notebook)
-    return plot_data, regression_results
+    return pd.DataFrame(plot_data), pd.DataFrame(regression_results)
