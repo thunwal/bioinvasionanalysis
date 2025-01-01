@@ -33,10 +33,8 @@ and a very basic [cost surface](data/cost_surface_gtopo30_esri102031_5km_exp_res
 0. **Prepare input data** *(only if you intend to analyze your own data):*
    - See chapter "Input data requirements"
 1. **Run the Jupyter notebook**  
-   - See chapter "Running the Jupyter notebook"
-<br>  
-**- OR -**
-<br><br>
+   - See chapter "Running the Jupyter notebook"  
+   **- OR -**  
 2. **Run the script**
    - See chapter "Running the script"
 3. **Work with the results in your favourite tools**
