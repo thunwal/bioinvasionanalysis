@@ -3,65 +3,49 @@
 ## About this project
 
 This Python project aims to support the analysis of the **expansion dynamics** of non-native species by employing a 
-process-oriented and spatially explicit approach. On the basis of observation data and a cost surface, 
-(1) **sequential least-cost modelling** is used to reconstruct the spread with least-cost paths in annual time steps, 
-(2) **distinct populations** are delineated by excluding paths with high accumulated cost, and
-(3) **expansion rates** are calculated for all delineated populations using the distance regression method. 
+process-oriented and spatially explicit approach. On the basis of observation data and a cost surface,
 
-This project is published as part of the scientific publication:
+(1) **sequential least-cost modelling** is used to reconstruct the spread with least-cost paths in annual time steps,  
+(2) **distinct populations** are delineated by excluding paths with high accumulated cost, and  
+(3) **expansion rates** are calculated for all delineated populations using the distance regression method.
+
+This project is published as part of:
 
 > Rohrbach, Christa; Wallentin, Gudrun; Bila Dubaić, Jovana; Lanner, Julia (2024). *Leveraging sequential least-cost 
 > modelling to uncover multiple introductions: a case study of an invasive wild bee species.* [in preparation]
 
-## Workflow overview
+For detailed information on the methodology please refer to this publication.
 
-1. **Input data preparation** *(not part of this project)*  
-   - Observation records (GPKG file) and cost surface (GeoTIFF file).  
+## Project structure
 
-2. **Define the parameters in `params.py`**  
-   - Working directory
-   - Input data
-   - Analysis period
-   - Accumulated cost threshold (expressed as quantile) for population delineation
-   - Name for the script run (used to name output files)
+To analyze your data, you may use the provided [Jupyter notebook](notebooks/bioinvasionanalysis_demo.ipynb)
+or run `main.py`. We recommend using the notebook to familiarize yourself with the project.
+Either way you may want to start with the included demo data and default parameters to get your first results.
 
-3. **Run `main.py`**  
-   - This script will run all required modules and generate output files.
+The demo data consists of European [observation data](data/imexicana_20241227.gpkg) for the
+[Mexican grass-carrying wasp](https://en.wikipedia.org/wiki/Isodontia_mexicana)
+retrieved from GBIF ([source](https://doi.org/10.15468/dl.jm6bhs)), 
+and a very basic [cost surface](data/cost_surface_gtopo30_esri102031_5km_exp_rescaled.tif) derived from the GTOPO30 DEM by USGS
+([source](https://www.usgs.gov/centers/eros/science/usgs-eros-archive-digital-elevation-global-30-arc-second-elevation-gtopo30)).
 
-4. **Verify the results in your favourite tools**
+## Workflow
+
+0. **Prepare input data** *(only if you intend to analyze your own data):*
+   - See chapter "Input data requirements"
+1. **Run the Jupyter notebook**  
+   - See chapter "Running the Jupyter notebook"
+<br>  
+**\- OR -**
+<br><br>
+2. **Run the script**
+   - See chapter "Running the script"
+3. **Work with the results in your favourite tools**
    - `{run}.gpkg` Least-cost paths and observation data assigned to populations (GPKG file)
    - `{run}_cumulative_distances.csv` Cumulative distances for all populations and years (CSV file)
    - `{run}_expansion_rates.csv` Expansion rates for all populations (CSV file)
    - `{run}_sensitivity_test.csv` Sensitivity test (effect of accumulated cost threshold on number of populations) (CSV file)
 
-For more information on the methodology, please refer to the associated manuscript.
-
-## Future development
-
-- add demo data
-- add Jupyter notebook for interactive exploration of results
-- add more output fields to the sensitivity test, e.g. the number of observations per population?
-- open to community suggestions and contributions
-
-## Input data
-
-- **Observation data**:  
-   Format: Point data (GeoPackage, GPKG)  
-   For analysis and output, the data will be projected to the coordinate reference system of the cost surface.
-   Required fields (field names can be configured in `params.py`):  
-
-   | Field      | Description                      | Example        |  
-   |------------|----------------------------------|----------------|  
-   | `year`     | Year of observation              | 2020           |  
-   | `location` | Name or code of location         | Austria (or: Vienna, AT) |  
-   | `geometry` | Point geometry                   | POINT(16.37 48.21) |
-
-- **Cost surface**:
-  - Format: Raster (GeoTIFF)
-  - The values represent the cost of moving through the landscape.
-  - Note that the cells must have equal side lengths.
-
-## Getting started
+## Project setup
 
 1. **Clone the repository**  
    On Windows:
@@ -85,13 +69,43 @@ For more information on the methodology, please refer to the associated manuscri
     python -m pip install -r requirements.txt  # this text file contains the packages to be installed
     ```
 
+## Running the Jupyter notebook
+
+1. Start the notebook server. Enter the following in the terminal: 
+   ```bash
+   jupyter notebook
+   ```
+2. A new browser tab should open. Open the folder `notebooks` and click `bioinvasionanalysis_demo.ipynb`.
+3. Follow the instructions given in the notebook.
+
 ## Running the script
 
-1. Enter your parameters in `params.py`
-   - Refer to the explanations in `params.py`.
-   - For the first exploratory run, you might want to start with an arbitrary `threshold` of, e.g., 0.95, and then 
-     consult the sensitivity test results and the population data to identify a suitable threshold.
-2. Run the `main.py` script:
+1. Check the parameters in `params.py`. 
+2. Refer to the comments in `params.py` for explanations on the parameters.
+3. Run the `main.py` script. Enter the following in the terminal:
    ```bash
    python c:\path\to\myprojects\bioinvasionanalysis\main.py
    ```
+
+## Input data requirements
+
+Note: The observation data are automatically projected to the coordinate reference system of the cost surface.
+
+- **Observation data**:  
+   Format: Point data (GeoPackage, *.GPKG)  
+   The layer name must match the file name.  
+   Required fields (field names can be configured in `params.py`):  
+   - Observation year (integer), e.g. 2020
+   - Name or code of location (string), e.g. "Austria" or "Vienna, AT"
+   - Point geometry
+<br><br>
+- **Cost surface**:  
+  Format: Raster (GeoTIFF, *.TIF)  
+  The values represent the cost of moving through the landscape.  
+  Note that the cells must have equal side lengths.
+
+## Future development
+
+- automatic detection of first and last observation year
+- add more output fields to the sensitivity test, e.g. the number of observations per population?
+- open to community suggestions and contributions
