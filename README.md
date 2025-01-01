@@ -35,7 +35,7 @@ and a very basic [cost surface](data/cost_surface_gtopo30_esri102031_5km_exp_res
 1. **Run the Jupyter notebook**  
    - See chapter "Running the Jupyter notebook"
 <br>  
-**\- OR -**
+**- OR -**
 <br><br>
 2. **Run the script**
    - See chapter "Running the script"
