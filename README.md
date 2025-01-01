@@ -102,8 +102,11 @@ Note: The observation data are automatically projected to the coordinate referen
   The values represent the cost of moving through the landscape.  
   Note that the cells must have equal side lengths.
 
-## Future development
+## Development ideas
 
 - automatic detection of first and last observation year
-- add more output fields to the sensitivity test, e.g. the number of observations per population?
+- add the sensitivity test to the Jupyter notebook
+- enhance Jupyter notebook with interactive maps
+- add more output fields to the sensitivity test, e.g., median observation count
+- retrieve observation data for a given species from the GBIF API
 - open to community suggestions and contributions
