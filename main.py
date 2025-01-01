@@ -33,17 +33,18 @@ out_csv_rates = os.path.join(workdir_path, f"{run}_expansion_rates.csv")
 out_csv_cumdist = os.path.join(workdir_path, f"{run}_cumulative_distances.csv")
 
 # Call functions
-print(f"[{dt.now().strftime('%H:%M:%S')}] Loading cost raster from '{os.path.join(workdir_path, cost_name)}'...")
-in_cost = rio.open(os.path.join(workdir_path, cost_name))
+if __name__ == "__main__":
+    print(f"[{dt.now().strftime('%H:%M:%S')}] Loading cost raster from '{os.path.join(workdir_path, cost_name)}'...")
+    with rio.open(os.path.join(workdir_path, cost_name)) as in_cost:
+        presence_thinned, cell_size = thin(in_gpkg, in_lyr_points, in_cost, out_gpkg, out_lyr_points, out_lyr_points_thinned, year_field, start_year, end_year, location_field)
+        paths(out_gpkg, out_lyr_paths, presence_thinned, in_cost, year_field, start_year, end_year)
 
-presence_thinned, cell_size = thin(in_gpkg, in_lyr_points, in_cost, out_gpkg, out_lyr_points, out_lyr_points_thinned, year_field, start_year, end_year, location_field)
-paths(out_gpkg, out_lyr_paths, presence_thinned, in_cost, year_field, start_year, end_year)
-outlier_quantile, outlier_fence = upper_outlier_fence(out_gpkg, out_lyr_paths)
-sensitivity_analysis(out_gpkg, out_lyr_paths, out_csv_sensitivity_test, np.arange(outlier_quantile, 1.00, 0.01))
+    outlier_quantile, outlier_fence = upper_outlier_fence(out_gpkg, out_lyr_paths)
 
-if threshold is None:
-    threshold = outlier_quantile
+    if threshold is None:
+        threshold = outlier_quantile
 
-group_paths(out_gpkg, out_lyr_paths, out_lyr_paths_grouped, threshold)
-group_points(out_gpkg, out_lyr_points, out_lyr_paths_grouped, out_lyr_points_grouped, cell_size)
-expansion_rate(out_gpkg, out_lyr_points_grouped, out_csv_rates, out_csv_cumdist, year_field)
+    group_paths(out_gpkg, out_lyr_paths, out_lyr_paths_grouped, threshold)
+    group_points(out_gpkg, out_lyr_points, out_lyr_paths_grouped, out_lyr_points_grouped, cell_size)
+    expansion_rate(out_gpkg, out_lyr_points_grouped, out_csv_rates, out_csv_cumdist, year_field)
+    sensitivity_analysis(out_gpkg, out_lyr_paths, out_csv_sensitivity_test, np.arange(outlier_quantile, 1.00, 0.01))
