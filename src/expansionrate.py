@@ -9,8 +9,8 @@ def expansion_rate(in_gpkg, in_points, out_csv_rates, out_csv_rates_details, yea
     Calculates the expansion rate for each population by regressing cumulative distance to the first point against time.
     """
     gdf_points = gpd.read_file(in_gpkg, layer=in_points)
-    regression_results = []
-    plot_data = []
+    exp_rates = []
+    cum_distances = []
 
     print(f"[{dt.now().strftime('%H:%M:%S')}] Calculating expansion rates for groups (populations)...")
     for group_id, group in gdf_points.groupby('group_id'):
@@ -33,7 +33,7 @@ def expansion_rate(in_gpkg, in_points, out_csv_rates, out_csv_rates_details, yea
 
         # Append result to list
         for year, subset in group.groupby(year_field):
-            plot_data.append({
+            cum_distances.append({
                 'group_id': group_id,
                 'year': int(year),
                 'max_distance': subset['cumulative_max_distance'].max()
@@ -45,7 +45,7 @@ def expansion_rate(in_gpkg, in_points, out_csv_rates, out_csv_rates_details, yea
         model = sm.OLS(y, x).fit()
 
         # Append result to list
-        regression_results.append({
+        exp_rates.append({
             'group_id': group_id,
             'min_year': int(min_year),
             'max_year': int(max_year),
@@ -56,12 +56,12 @@ def expansion_rate(in_gpkg, in_points, out_csv_rates, out_csv_rates_details, yea
         })
 
     # Save cumulative max. distance results
-    pd.DataFrame(plot_data).to_csv(out_csv_rates_details, index=False)
+    pd.DataFrame(cum_distances).to_csv(out_csv_rates_details, index=False)
     print(f"[{dt.now().strftime('%H:%M:%S')}] Raw data saved to '{out_csv_rates_details}'.")
 
     # Save regression results
-    pd.DataFrame(regression_results).to_csv(out_csv_rates, index=False)
+    pd.DataFrame(exp_rates).to_csv(out_csv_rates, index=False)
     print(f"[{dt.now().strftime('%H:%M:%S')}] Expansion rates saved to '{out_csv_rates}'.")
 
     # Return dataframes (currently only needed for the usage in Jupyter notebook)
-    return pd.DataFrame(plot_data), pd.DataFrame(regression_results)
+    return pd.DataFrame(cum_distances), pd.DataFrame(exp_rates)
