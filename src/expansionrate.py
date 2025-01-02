@@ -2,55 +2,68 @@ from datetime import datetime as dt
 import pandas as pd
 import geopandas as gpd
 import statsmodels.api as sm
+from shapely.geometry import MultiPoint
 
 
-def expansion_rate(in_gpkg, in_points, out_csv_rates, out_csv_rates_details, year_field):
+def expansion_rate(in_gpkg, in_points, out_csv_rates, out_csv_rates_details, year_field, location_field):
     """
     Calculates the expansion rate for each population by regressing cumulative distance to the first point against time.
     """
     gdf_points = gpd.read_file(in_gpkg, layer=in_points)
+    gdf_points = gdf_points.dropna(subset=[year_field, 'geometry']).astype({year_field: 'int32'})
     exp_rates = []
     cum_distances = []
 
     print(f"[{dt.now().strftime('%H:%M:%S')}] Calculating expansion rates for groups (populations)...")
-    for group_id, group in gdf_points.groupby('group_id'):
-        # Identify the first occurrence
-        first_point = group.loc[group[year_field].idxmin()]
-        first_point_geom = first_point.geometry
+    for group_id, population in gdf_points.groupby('group_id'):
+        # Identify the point(s) from the first year
+        first_year = population[year_field].min()
+        first_year_points = population[population[year_field] == first_year]
+        first_year_geoms = first_year_points.geometry
 
-        # Calculate distances to the first point
-        group['distance_to_first'] = group.geometry.distance(first_point_geom)
+        # If multiple points, aggregate to a single reference point
+        if len(first_year_geoms) > 1:
+            reference_point = MultiPoint(first_year_geoms.geometry.tolist()).centroid
+        else:
+            reference_point = first_year_geoms.iloc[0]
+
+        # Calculate distances to the reference point
+        population['distance_to_first'] = population.geometry.distance(reference_point)
 
         # Compute the cumulative maximum distance per year
-        group = group.sort_values(by=year_field)
-        group['cumulative_max_distance'] = group['distance_to_first'].cummax()
-
-        # Calculate stats
-        annual_counts = group.groupby(year_field).size()
-        median_observations_per_year = annual_counts.median()
-        min_year = group[year_field].min()
-        max_year = group[year_field].max()
+        population = population.sort_values(by=year_field)
+        population['cumulative_max_distance'] = population['distance_to_first'].cummax()
 
         # Append result to list
-        for year, subset in group.groupby(year_field):
+        for year, subset in population.groupby(year_field):
             cum_distances.append({
                 'group_id': group_id,
-                'year': int(year),
+                'year': year,
                 'max_distance': subset['cumulative_max_distance'].max()
             })
 
+        # Calculate stats
+        # Fill years without observations with 0 values for the median calculation
+        min_year = population[year_field].min()
+        max_year = population[year_field].max()
+        all_years = pd.Series(range(min_year, max_year + 1), name=year_field)
+        annual_counts = population.groupby(year_field).size().reindex(all_years, fill_value=0)
+        median_annual_count = annual_counts.median()
+        first_observed_in = " / ".join(first_year_points[location_field].unique())
+
         # Regression
-        x = sm.add_constant(group[year_field])
-        y = group['cumulative_max_distance']
+        x = sm.add_constant(population[year_field])
+        y = population['cumulative_max_distance']
         model = sm.OLS(y, x).fit()
 
         # Append result to list
         exp_rates.append({
             'group_id': group_id,
-            'min_year': int(min_year),
-            'max_year': int(max_year),
-            'point_count': len(group),
-            'median_points_per_year': median_observations_per_year,
+            'first_observed_in': first_observed_in,
+            'min_year': min_year,
+            'max_year': max_year,
+            'point_count': len(population),
+            'median_points_per_year': median_annual_count,
             'expansion_rate': model.params.iloc[1],  # Slope of the regression line
             'r2': model.rsquared  # Model strength (coefficient of determination)
         })

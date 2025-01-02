@@ -46,5 +46,5 @@ if __name__ == "__main__":
 
     group_paths(out_gpkg, out_lyr_paths, out_lyr_paths_grouped, threshold)
     group_points(out_gpkg, out_lyr_points, out_lyr_paths_grouped, out_lyr_points_grouped, cell_size)
-    expansion_rate(out_gpkg, out_lyr_points_grouped, out_csv_rates, out_csv_cumdist, year_field)
+    expansion_rate(out_gpkg, out_lyr_points_grouped, out_csv_rates, out_csv_cumdist, year_field, location_field)
     sensitivity_analysis(out_gpkg, out_lyr_paths, out_csv_sensitivity_test, np.arange(outlier_quantile, 1.00, 0.01))
