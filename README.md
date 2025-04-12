@@ -41,7 +41,7 @@ and a very basic [cost surface](data/cost_surface_gtopo30_esri102031_5km_exp_res
    - `{run}.gpkg` Least-cost paths and observation data assigned to populations (GPKG file)
    - `{run}_cumulative_distances.csv` Cumulative distances for all populations and years (CSV file)
    - `{run}_expansion_rates.csv` Expansion rates for all populations (CSV file)
-   - `{run}_sensitivity_test.csv` Sensitivity test (effect of accumulated cost threshold on number of populations) (CSV file)
+   - `{run}_sensitivity_test.csv` Sensitivity test (effect of accumulated cost threshold on results) (CSV file)
 
 ## Project setup
 
@@ -107,6 +107,5 @@ Note: The observation data are automatically projected to the coordinate referen
 - automatic detection of first and last observation year
 - add the sensitivity test to the Jupyter notebook
 - enhance Jupyter notebook with interactive maps
-- add more output fields to the sensitivity test, e.g., median observation count
 - retrieve observation data for a given species from the GBIF API
 - open to community suggestions and contributions
