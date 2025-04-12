@@ -1,6 +1,5 @@
 from datetime import datetime as dt
 import numpy as np
-import pandas as pd
 import geopandas as gpd
 from shapely.geometry import MultiLineString, LineString, Point
 import math
@@ -16,7 +15,7 @@ def get_endpoints(geom):
         return [line.coords[0] for line in geom.geoms] + [line.coords[-1] for line in geom.geoms]
 
 
-def assign_group_ids(lines):
+def group_paths(lines):
     """
     Assigns an ID to each group of MultiLineStrings which share start and/or end points.
     """
@@ -57,7 +56,7 @@ def assign_group_ids(lines):
 
     # Cleanup before returning
     gdf = gdf.drop(columns=['endpoints'])
-
+    gdf['group_id'] = gdf['group_id'].astype('string')   # group_id becomes dtype object somehow. Set as string (must be nullable)
     return gdf
 
 
@@ -83,38 +82,7 @@ def upper_outlier_fence(in_gpkg, in_paths):
     return upper_bound_quantile, upper_bound
 
 
-def sensitivity_analysis(in_gpkg, in_paths, out_csv_outlier_test, quantile_range):
-    """
-    Runs a sensitivity analysis over a range of thresholds (quantiles) to determine the impact on the number of resulting populations.
-    """
-    gdf = gpd.read_file(in_gpkg, layer=in_paths)
-
-    print(f"[{dt.now().strftime('%H:%M:%S')}] Testing accumulated cost thresholds from Q{round(quantile_range[0],3)} to Q{round(quantile_range[-1],3)}...")
-
-    results = []
-
-    for quantile in quantile_range:
-        # Copy the GeoDataFrame to avoid modifying the original
-        gdf_copy = gdf.copy()
-
-        # Apply quantile threshold to filter paths
-        threshold = np.quantile(gdf_copy['accumulated_cost'], quantile)
-        gdf_filtered = gdf_copy[gdf_copy['accumulated_cost'] < threshold]
-
-        # Assign subpopulation IDs to the filtered DataFrame
-        gdf_filtered = assign_group_ids(gdf_filtered)
-
-        # Count distinct subpopulation IDs
-        num_groups = gdf_filtered['group_id'].nunique()
-
-        # Record the results
-        results.append({'quantile': quantile, 'num_groups': num_groups})
-
-    pd.DataFrame(results).to_csv(out_csv_outlier_test, index=False)
-    print(f"[{dt.now().strftime('%H:%M:%S')}] Test results saved to '{out_csv_outlier_test}'.")
-
-
-def group_paths(in_out_gpkg, in_paths, out_paths, quantile):
+def group_paths_save(in_out_gpkg, in_paths, out_paths, quantile):
     """
     Assigns paths to populations. This is done by ignoring paths with an accumulated cost higher than
     the input quantile parameter and checking the connectivity of the remaining paths.
@@ -126,7 +94,7 @@ def group_paths(in_out_gpkg, in_paths, out_paths, quantile):
     print(f"[{dt.now().strftime('%H:%M:%S')}] Least-cost paths with accumulated cost < {round(threshold,3)} (Q{round(quantile,3)}) loaded.")
 
     print(f"[{dt.now().strftime('%H:%M:%S')}] Grouping least-cost paths by their connectivity...")
-    paths_filtered_grouped = assign_group_ids(paths_filtered)
+    paths_filtered_grouped = group_paths(paths_filtered)
 
     # Save the selected and tagged paths to the GeoPackage which specific to the script run
     paths_filtered_grouped.to_file(in_out_gpkg, layer=out_paths)
@@ -136,37 +104,45 @@ def group_paths(in_out_gpkg, in_paths, out_paths, quantile):
     return paths_filtered_grouped
 
 
-def group_points(in_out_gpkg, in_points, in_paths, out_points, cell_size):
-    """
-    Assigns presence points to populations using a spatial join (nearest).
-    Coordinate matching is not possible here because the path endpoints are centered on cost surface cells.
-    """
-    gdf_points = gpd.read_file(in_out_gpkg, layer=in_points)
-    gdf_points['point_id'] = gdf_points.index
-    gdf_paths = gpd.read_file(in_out_gpkg, layer=in_paths)
+def group_points(in_points, in_paths, cell_size):
+
+    in_points['point_id'] = in_points.index
     half_diagonal = (math.sqrt(2) * cell_size) / 2
 
     # Extract endpoints of all paths and create a dataframe
     print(f"[{dt.now().strftime('%H:%M:%S')}] Assigning observations to the groups formed by least-cost paths...")
     endpoints = []
 
-    for index, path in gdf_paths.iterrows():
+    for index, path in in_paths.iterrows():
         points = get_endpoints(path.geometry)
         for point in points:
             # Append endpoint geometry and group_id to the list
             endpoints.append({'geometry': Point(point), 'group_id': path.group_id})
 
-    gdf_endpoints = gpd.GeoDataFrame(endpoints, crs=gdf_paths.crs)
+    gdf_endpoints = gpd.GeoDataFrame(endpoints, crs=in_paths.crs)
+    gdf_endpoints['group_id'] = gdf_endpoints['group_id'].astype('string')  # group_id becomes dtype object somehow. Set as string (must be nullable)
 
     # Spatial join: assigns each point the group_id of the nearest endpoint
-    gdf_points = gpd.sjoin_nearest(gdf_points, gdf_endpoints[['geometry', 'group_id']], how='left', max_distance=half_diagonal, distance_col='dist')
+    out_points = gpd.sjoin_nearest(in_points, gdf_endpoints[['geometry', 'group_id']], how='left', max_distance=half_diagonal, distance_col='dist')
     # Drop duplicated points (duplication occurs when more than one path has an endpoint in the same cell)
-    gdf_points.drop_duplicates(subset=['point_id'], keep='first', inplace=True)
-    gdf_points.drop(columns=['index_right', 'point_id'], inplace=True)
+    out_points.drop_duplicates(subset=['point_id'], keep='first', inplace=True)
+    out_points.drop(columns=['index_right', 'point_id'], inplace=True)
+    return out_points
+
+
+def group_points_save(in_out_gpkg, in_points, in_paths, out_points, cell_size):
+    """
+    Assigns presence points to populations using a spatial join (nearest).
+    Coordinate matching is not possible here because the path endpoints are centered on cost surface cells.
+    """
+    gdf_points = gpd.read_file(in_out_gpkg, layer=in_points)
+    gdf_paths = gpd.read_file(in_out_gpkg, layer=in_paths)
+
+    gdf_points = group_points(gdf_points, gdf_paths, cell_size)
 
     # Save the selected and tagged paths to the GeoPackage which is specific to the script run
     gdf_points.to_file(in_out_gpkg, layer=out_points)
     print(f"[{dt.now().strftime('%H:%M:%S')}] Grouped observations saved to '{in_out_gpkg}', layer '{out_points}'.")
 
-    # Return dataframe (currently only needed for the usage in Jupyter notebook)
+    # Return dataframe (needed for sensitivity test and Jupyter notebook)
     return gdf_points

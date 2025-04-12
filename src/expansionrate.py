@@ -5,12 +5,11 @@ import statsmodels.api as sm
 from shapely.geometry import MultiPoint
 
 
-def expansion_rate(in_gpkg, in_points, out_csv_rates, out_csv_rates_details, year_field, location_field):
+def expansion_rate(in_points, year_field, location_field):
     """
     Calculates the expansion rate for each population by regressing cumulative distance to the first point against time.
     """
-    gdf_points = gpd.read_file(in_gpkg, layer=in_points)
-    gdf_points = gdf_points.dropna(subset=[year_field, 'geometry']).astype({year_field: 'int32'})
+    gdf_points = in_points.dropna(subset=[year_field, 'geometry', 'group_id']).astype({year_field: 'int32', 'group_id': 'string'})
     exp_rates = []
     cum_distances = []
 
@@ -68,13 +67,24 @@ def expansion_rate(in_gpkg, in_points, out_csv_rates, out_csv_rates_details, yea
             'r2': model.rsquared  # Model strength (coefficient of determination)
         })
 
+    return pd.DataFrame(cum_distances).astype({'group_id': 'string'}), pd.DataFrame(exp_rates).astype({'group_id': 'string'})
+
+
+def expansion_rate_save(in_gpkg, in_points, out_csv_rates, out_csv_rates_details, year_field, location_field):
+    """
+    Reads from and writes to GeoPackage, wrapping the expansion_rate() function.
+    """
+    gdf_points = gpd.read_file(in_gpkg, layer=in_points)
+
+    cum_distances, exp_rates = expansion_rate(gdf_points, year_field, location_field)
+
     # Save cumulative max. distance results
-    pd.DataFrame(cum_distances).to_csv(out_csv_rates_details, index=False)
+    cum_distances.to_csv(out_csv_rates_details, index=False)
     print(f"[{dt.now().strftime('%H:%M:%S')}] Raw data saved to '{out_csv_rates_details}'.")
 
     # Save regression results
-    pd.DataFrame(exp_rates).to_csv(out_csv_rates, index=False)
+    exp_rates.to_csv(out_csv_rates, index=False)
     print(f"[{dt.now().strftime('%H:%M:%S')}] Expansion rates saved to '{out_csv_rates}'.")
 
     # Return dataframes (currently only needed for the usage in Jupyter notebook)
-    return pd.DataFrame(cum_distances), pd.DataFrame(exp_rates)
+    return cum_distances, exp_rates

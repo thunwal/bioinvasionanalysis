@@ -5,8 +5,9 @@ from datetime import datetime as dt
 import numpy as np
 from src.thinning import thin
 from src.leastcostpaths import paths
-from src.populations import group_paths, group_points, upper_outlier_fence, sensitivity_analysis
-from src.expansionrate import expansion_rate
+from src.populations import group_paths_save, group_points_save, upper_outlier_fence
+from src.expansionrate import expansion_rate_save
+from src.sensitivitytest import sensitivity_analysis
 
 # Load parameters
 workdir_path = params.workdir_path
@@ -44,7 +45,7 @@ if __name__ == "__main__":
     if threshold is None:
         threshold = outlier_quantile
 
-    group_paths(out_gpkg, out_lyr_paths, out_lyr_paths_grouped, threshold)
-    group_points(out_gpkg, out_lyr_points, out_lyr_paths_grouped, out_lyr_points_grouped, cell_size)
-    expansion_rate(out_gpkg, out_lyr_points_grouped, out_csv_rates, out_csv_cumdist, year_field, location_field)
-    sensitivity_analysis(out_gpkg, out_lyr_paths, out_csv_sensitivity_test, np.arange(outlier_quantile, 1.00, 0.01))
+    group_paths_save(out_gpkg, out_lyr_paths, out_lyr_paths_grouped, threshold)
+    group_points_save(out_gpkg, out_lyr_points, out_lyr_paths_grouped, out_lyr_points_grouped, cell_size)
+    expansion_rate_save(out_gpkg, out_lyr_points_grouped, out_csv_rates, out_csv_cumdist, year_field, location_field)
+    sensitivity_analysis(out_gpkg, out_lyr_points, out_lyr_paths, out_csv_sensitivity_test, cell_size, year_field, location_field, np.arange(0.01, 1.00, 0.01))
