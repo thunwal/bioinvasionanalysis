@@ -40,12 +40,12 @@ if __name__ == "__main__":
         presence_thinned, cell_size = thin(in_gpkg, in_lyr_points, in_cost, out_gpkg, out_lyr_points, out_lyr_points_thinned, year_field, start_year, end_year, location_field)
         paths(out_gpkg, out_lyr_paths, presence_thinned, in_cost, year_field, start_year, end_year)
 
-    outlier_quantile, outlier_fence = upper_outlier_fence(out_gpkg, out_lyr_paths)
+    outlier_quantile, outlier_fence, test_steps = upper_outlier_fence(out_gpkg, out_lyr_paths)
 
     if threshold is None:
         threshold = outlier_quantile
 
-    group_paths_save(out_gpkg, out_lyr_paths, out_lyr_paths_grouped, threshold)
-    group_points_save(out_gpkg, out_lyr_points, out_lyr_paths_grouped, out_lyr_points_grouped, cell_size)
-    expansion_rate_save(out_gpkg, out_lyr_points_grouped, out_csv_rates, out_csv_cumdist, year_field, location_field)
-    sensitivity_analysis(out_gpkg, out_lyr_points, out_lyr_paths, out_csv_sensitivity_test, cell_size, year_field, location_field, np.arange(0.01, 1.00, 0.01))
+    #group_paths_save(out_gpkg, out_lyr_paths, out_lyr_paths_grouped, threshold)
+    #group_points_save(out_gpkg, out_lyr_points, out_lyr_paths_grouped, out_lyr_points_grouped, cell_size)
+    #expansion_rate_save(out_gpkg, out_lyr_points_grouped, out_csv_rates, out_csv_cumdist, year_field, location_field)
+    sensitivity_analysis(out_gpkg, out_lyr_points, out_lyr_paths, out_csv_sensitivity_test, cell_size, year_field, location_field, test_steps, absolute_steps=True)  # np.arange(0.01, 1.00, 0.01)

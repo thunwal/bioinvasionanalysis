@@ -77,9 +77,14 @@ def upper_outlier_fence(in_gpkg, in_paths):
     # Find rank of the outlier fence
     upper_bound_quantile = (gdf['accumulated_cost'] < upper_bound).mean()
 
+    # Generate steps for sensitivity testing (100 evenly spaced values)
+    min_cost = gdf['accumulated_cost'].min()
+    max_cost = gdf['accumulated_cost'].max()
+    test_steps = np.linspace(min_cost, max_cost, 1000)
+
     print(f"[{dt.now().strftime('%H:%M:%S')}] Upper outlier fence (Q3 + 1.5 x IQR) for accumulated cost is {round(upper_bound,3)} (Q{round(upper_bound_quantile,3)}).")
 
-    return upper_bound_quantile, upper_bound
+    return upper_bound_quantile, upper_bound, test_steps
 
 
 def group_paths_save(in_out_gpkg, in_paths, out_paths, quantile):
