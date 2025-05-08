@@ -81,12 +81,12 @@ def statistics(in_gpkg, in_paths):
     # Generate steps for sensitivity testing (100 evenly spaced values)
     min_cost = gdf['accumulated_cost'].min()
     max_cost = gdf['accumulated_cost'].max()
-    #test_steps = np.linspace(min_cost, max_cost, 1000)
-    test_steps = np.arange(0.00, max_cost + 0.01, 0.01)
+    #acc_cost_test_steps = np.linspace(min_cost, max_cost, 1000)
+    acc_cost_test_steps = np.arange(0.00, max_cost + 0.01, 0.01)
 
     print(f"[{dt.now().strftime('%H:%M:%S')}] Upper outlier fence (Q3 + 1.5 x IQR) for accumulated cost is {round(upper_bound,3)} (Q{round(upper_bound_quantile,3)}).")
 
-    return upper_bound_quantile, upper_bound, test_steps
+    return upper_bound_quantile, upper_bound, acc_cost_test_steps
 
 
 def group_paths_save(in_out_gpkg, in_paths, out_paths, threshold, threshold_is_absolute=False):

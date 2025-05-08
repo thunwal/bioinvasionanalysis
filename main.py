@@ -1,6 +1,7 @@
 import params
 import os
 import rasterio as rio
+import numpy as np
 from datetime import datetime as dt
 from src.thinning import thin
 from src.leastcostpaths import paths
@@ -20,8 +21,9 @@ start_year = params.start_year
 end_year = params.end_year
 cost_name = params.cost_name
 mode = params.mode
-test_steps = getattr(params, 'test_steps', None)
-steps_are_absolute = getattr(params, 'steps_are_absolute', None)
+acc_cost_test_steps = getattr(params, 'acc_cost_test_steps', None)
+acc_cost_steps_are_absolute = getattr(params, 'acc_cost_steps_are_absolute', None)
+robust_test_steps = getattr(params, 'robust_test_steps', None)
 
 # Define dynamic names
 in_gpkg = os.path.join(workdir_path, presence_name)
@@ -64,12 +66,15 @@ def run_analysis_pipeline():
 def run_sensitivity_test(cell_size, default_test_steps):
     """Run the sensitivity analysis"""
     # Use global variables for step values
-    global test_steps, steps_are_absolute
+    global acc_cost_test_steps, acc_cost_steps_are_absolute, robust_test_steps
 
-    # Use provided test_steps if set, otherwise use default_test_steps
-    if test_steps is None:
-        test_steps = default_test_steps
-        steps_are_absolute = True
+    # Use provided test steps if set, otherwise use defaults
+    if acc_cost_test_steps is None:
+        acc_cost_test_steps = default_test_steps
+        acc_cost_steps_are_absolute = True
+
+    if robust_test_steps is None:
+        robust_test_steps = np.arange(5, 16, 1)
 
     print(f"[{dt.now().strftime('%H:%M:%S')}] Running sensitivity analysis...")
     sensitivity_analysis(
@@ -80,8 +85,9 @@ def run_sensitivity_test(cell_size, default_test_steps):
         cell_size,
         year_field,
         location_field,
-        test_steps,
-        steps_are_absolute
+        acc_cost_test_steps,
+        acc_cost_steps_are_absolute,
+        robust_test_steps
     )
 
 
@@ -107,9 +113,7 @@ if __name__ == "__main__":
             run_sensitivity_test(cell_size, default_test_steps)
         except Exception as e:
             print(f"[{dt.now().strftime('%H:%M:%S')}] ERROR: {e}")
-            print(
-                f"[{dt.now().strftime('%H:%M:%S')}] Did you forget to run in 'analysis' mode at least once to generate least-cost paths?")
+            print(f"[{dt.now().strftime('%H:%M:%S')}] Did you forget to run in 'analysis' mode to generate least-cost paths?")
 
     else:
-        print(
-            f"[{dt.now().strftime('%H:%M:%S')}] ERROR: Invalid mode '{mode}'. Valid modes are 'analysis', 'all', or 'test'")
+        print(f"[{dt.now().strftime('%H:%M:%S')}] ERROR: Invalid mode '{mode}'. Valid modes are 'analysis', 'all', or 'test'")
