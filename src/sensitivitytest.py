@@ -6,7 +6,7 @@ from src.populations import group_paths, group_points
 from src.expansionrate import expansion_rate
 
 
-def sensitivity_analysis(in_gpkg, in_points, in_paths, out_csv_outlier_test, cell_size, year_field, location_field, test_steps, absolute_steps=False):
+def sensitivity_analysis(in_gpkg, in_points, in_paths, out_csv_outlier_test, cell_size, year_field, location_field, test_steps, steps_are_absolute=False):
     """
     Runs a sensitivity analysis over a range of thresholds (quantiles) to determine the impact on the number of resulting populations.
     """
@@ -16,7 +16,7 @@ def sensitivity_analysis(in_gpkg, in_points, in_paths, out_csv_outlier_test, cel
     # Define thresholds for the robust population definition
     robust_test_steps = np.arange(5, 16, 1)
 
-    if absolute_steps:
+    if steps_are_absolute:
         print(f"[{dt.now().strftime('%H:%M:%S')}] ########### SENSITIVITY TEST ###########")
         print(f"[{dt.now().strftime('%H:%M:%S')}] Testing accumulated cost thresholds (absolute) from {round(test_steps[0],3)} to {round(test_steps[-1],3)}...")
     else:
@@ -31,7 +31,7 @@ def sensitivity_analysis(in_gpkg, in_points, in_paths, out_csv_outlier_test, cel
         gdf_paths_copy = gdf_paths.copy()
 
         # Calculate threshold to filter paths
-        if absolute_steps:
+        if steps_are_absolute:
             # Treat input value as an absolute value
             threshold = step
             # Calculate what quantile this represents (percentage of values below the threshold)

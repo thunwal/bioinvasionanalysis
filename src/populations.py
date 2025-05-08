@@ -1,5 +1,6 @@
 from datetime import datetime as dt
 import numpy as np
+import pandas as pd
 import geopandas as gpd
 from shapely.geometry import MultiLineString, LineString, Point
 import math
@@ -60,7 +61,7 @@ def group_paths(lines):
     return gdf
 
 
-def upper_outlier_fence(in_gpkg, in_paths):
+def statistics(in_gpkg, in_paths):
     """
     Returns the upper outlier fence (Q3 + 1.5 x IQR) for accumulated cost as a quantile and an absolute value.
     """
@@ -80,23 +81,35 @@ def upper_outlier_fence(in_gpkg, in_paths):
     # Generate steps for sensitivity testing (100 evenly spaced values)
     min_cost = gdf['accumulated_cost'].min()
     max_cost = gdf['accumulated_cost'].max()
-    test_steps = np.linspace(min_cost, max_cost, 1000)
+    #test_steps = np.linspace(min_cost, max_cost, 1000)
+    test_steps = np.arange(0.00, max_cost + 0.01, 0.01)
 
     print(f"[{dt.now().strftime('%H:%M:%S')}] Upper outlier fence (Q3 + 1.5 x IQR) for accumulated cost is {round(upper_bound,3)} (Q{round(upper_bound_quantile,3)}).")
 
     return upper_bound_quantile, upper_bound, test_steps
 
 
-def group_paths_save(in_out_gpkg, in_paths, out_paths, quantile):
+def group_paths_save(in_out_gpkg, in_paths, out_paths, threshold, threshold_is_absolute=False):
     """
     Assigns paths to populations. This is done by ignoring paths with an accumulated cost higher than
     the input quantile parameter and checking the connectivity of the remaining paths.
     """
     paths = gpd.read_file(in_out_gpkg, layer=in_paths)
 
-    threshold = np.quantile(paths['accumulated_cost'], quantile)
-    paths_filtered = paths[paths['accumulated_cost'] < threshold]
-    print(f"[{dt.now().strftime('%H:%M:%S')}] Least-cost paths with accumulated cost < {round(threshold,3)} (Q{round(quantile,3)}) loaded.")
+    if threshold_is_absolute:
+        # Treat input value as absolute value
+        threshold_as_cost = threshold
+        # Calculate what quantile this represents (percentage of values below the threshold)
+        values_below_threshold = pd.Series(paths['accumulated_cost'] < threshold_as_cost).sum()
+        total_values = len(paths)
+        threshold_as_quantile = values_below_threshold / total_values
+    else:
+        # Treat input value as a quantile
+        threshold_as_quantile = threshold
+        threshold_as_cost = np.quantile(paths['accumulated_cost'], threshold_as_quantile)
+
+    paths_filtered = paths[paths['accumulated_cost'] < threshold_as_cost]
+    print(f"[{dt.now().strftime('%H:%M:%S')}] Least-cost paths with accumulated cost < {round(threshold_as_cost,3)} (Q{round(threshold_as_quantile,3)}) loaded.")
 
     print(f"[{dt.now().strftime('%H:%M:%S')}] Grouping least-cost paths by their connectivity...")
     paths_filtered_grouped = group_paths(paths_filtered)

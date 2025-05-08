@@ -3,6 +3,7 @@ import geopandas as gpd
 import numpy as np
 from shapely.geometry import Polygon, box
 
+
 def thin(in_gpkg, in_points, in_cost, out_gpkg, out_points, out_points_thinned, year_field, start_year, end_year, location_field):
     """
     Prepares presence data for further processing by projecting it to the cost surface CRS and reducing the
@@ -26,6 +27,11 @@ def thin(in_gpkg, in_points, in_cost, out_gpkg, out_points, out_points_thinned, 
         f"of which {len(points.dropna(subset=[year_field, 'geometry']).index)} rows with non-null year and geometry.")
     points = points.dropna(subset=[year_field, 'geometry']).astype({year_field: 'int32'})
     points = points[(points[year_field] >= start_year) & (points[year_field] <= end_year)]
+
+    # Sample 80% of the data randomly (tbd - for testing - remove later?)
+    # sample_fraction = 0.8
+    # points = points.sample(frac=sample_fraction, random_state=None)
+    # print(f"[{dt.now().strftime('%H:%M:%S')}] Randomly sampled {sample_fraction * 100}% of points, resulting in {len(points.index)} rows.")
 
     # Reproject points to match the coordinate system of the raster
     try:

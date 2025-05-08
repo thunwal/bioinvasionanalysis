@@ -78,5 +78,5 @@ def paths(out_gpkg, out_paths, in_points, in_cost, year_field, start_year, end_y
     result_gdf.to_file(out_gpkg, layer=out_paths)
     print(f"[{dt.now().strftime('%H:%M:%S')}] Least-cost paths saved to '{out_gpkg}', layer '{out_paths}'.")
 
-    # Return dataframe (currently only needed for the usage in Jupyter notebook)
+    # Return dataframe
     return result_gdf

@@ -2,10 +2,9 @@ import params
 import os
 import rasterio as rio
 from datetime import datetime as dt
-import numpy as np
 from src.thinning import thin
 from src.leastcostpaths import paths
-from src.populations import group_paths_save, group_points_save, upper_outlier_fence
+from src.populations import group_paths_save, group_points_save, statistics
 from src.expansionrate import expansion_rate_save
 from src.sensitivitytest import sensitivity_analysis
 
@@ -13,12 +12,16 @@ from src.sensitivitytest import sensitivity_analysis
 workdir_path = params.workdir_path
 run = params.run
 threshold = getattr(params, 'threshold', None)
+threshold_is_absolute = getattr(params, 'threshold_is_absolute', None)
 presence_name = params.presence_name
 year_field = params.year_field
 location_field = params.location_field
 start_year = params.start_year
 end_year = params.end_year
 cost_name = params.cost_name
+mode = params.mode
+test_steps = getattr(params, 'test_steps', None)
+steps_are_absolute = getattr(params, 'steps_are_absolute', None)
 
 # Define dynamic names
 in_gpkg = os.path.join(workdir_path, presence_name)
@@ -33,19 +36,80 @@ out_csv_sensitivity_test = os.path.join(workdir_path, f"{run}_sensitivity_test.c
 out_csv_rates = os.path.join(workdir_path, f"{run}_expansion_rates.csv")
 out_csv_cumdist = os.path.join(workdir_path, f"{run}_cumulative_distances.csv")
 
-# Call functions
-if __name__ == "__main__":
+
+def run_analysis_pipeline():
+    """Run the main analysis pipeline (thinning, paths, grouping, expansion rate)"""
+    # Use global variables for threshold values
+    global threshold, threshold_is_absolute
+
     print(f"[{dt.now().strftime('%H:%M:%S')}] Loading cost raster from '{os.path.join(workdir_path, cost_name)}'...")
     with rio.open(os.path.join(workdir_path, cost_name)) as in_cost:
-        presence_thinned, cell_size = thin(in_gpkg, in_lyr_points, in_cost, out_gpkg, out_lyr_points, out_lyr_points_thinned, year_field, start_year, end_year, location_field)
+        presence_thinned, cell_size = thin(in_gpkg, in_lyr_points, in_cost, out_gpkg, out_lyr_points,
+                                           out_lyr_points_thinned, year_field, start_year, end_year, location_field)
         paths(out_gpkg, out_lyr_paths, presence_thinned, in_cost, year_field, start_year, end_year)
 
-    outlier_quantile, outlier_fence, test_steps = upper_outlier_fence(out_gpkg, out_lyr_paths)
+    outlier_quantile, outlier_fence, default_test_steps = statistics(out_gpkg, out_lyr_paths)
 
     if threshold is None:
         threshold = outlier_quantile
+        threshold_is_absolute = False
 
-    #group_paths_save(out_gpkg, out_lyr_paths, out_lyr_paths_grouped, threshold)
-    #group_points_save(out_gpkg, out_lyr_points, out_lyr_paths_grouped, out_lyr_points_grouped, cell_size)
-    #expansion_rate_save(out_gpkg, out_lyr_points_grouped, out_csv_rates, out_csv_cumdist, year_field, location_field)
-    sensitivity_analysis(out_gpkg, out_lyr_points, out_lyr_paths, out_csv_sensitivity_test, cell_size, year_field, location_field, test_steps, absolute_steps=True)  # np.arange(0.01, 1.00, 0.01)
+    group_paths_save(out_gpkg, out_lyr_paths, out_lyr_paths_grouped, threshold, threshold_is_absolute)
+    group_points_save(out_gpkg, out_lyr_points, out_lyr_paths_grouped, out_lyr_points_grouped, cell_size)
+    expansion_rate_save(out_gpkg, out_lyr_points_grouped, out_csv_rates, out_csv_cumdist, year_field, location_field)
+
+    return cell_size, default_test_steps
+
+
+def run_sensitivity_test(cell_size, default_test_steps):
+    """Run the sensitivity analysis"""
+    # Use global variables for step values
+    global test_steps, steps_are_absolute
+
+    # Use provided test_steps if set, otherwise use default_test_steps
+    if test_steps is None:
+        test_steps = default_test_steps
+        steps_are_absolute = True
+
+    print(f"[{dt.now().strftime('%H:%M:%S')}] Running sensitivity analysis...")
+    sensitivity_analysis(
+        out_gpkg,
+        out_lyr_points,
+        out_lyr_paths,
+        out_csv_sensitivity_test,
+        cell_size,
+        year_field,
+        location_field,
+        test_steps,
+        steps_are_absolute
+    )
+
+
+# Call functions based on mode
+if __name__ == "__main__":
+    print(f"[{dt.now().strftime('%H:%M:%S')}] Running in '{mode}' mode")
+
+    if mode in ["analysis", "all"]:
+        cell_size, default_test_steps = run_analysis_pipeline()
+
+        if mode == "all":
+            run_sensitivity_test(cell_size, default_test_steps)
+
+    elif mode == "test":
+        # For test mode, ensure the required files exist
+        try:
+            with rio.open(os.path.join(workdir_path, cost_name)) as in_cost:
+                cell_size = in_cost.res[0]  # Get cell size from raster
+
+            # Get default test steps from existing paths
+            _, _, default_test_steps = statistics(out_gpkg, out_lyr_paths)
+
+            run_sensitivity_test(cell_size, default_test_steps)
+        except Exception as e:
+            print(f"[{dt.now().strftime('%H:%M:%S')}] ERROR: {e}")
+            print(
+                f"[{dt.now().strftime('%H:%M:%S')}] Did you forget to run in 'analysis' mode at least once to generate least-cost paths?")
+
+    else:
+        print(
+            f"[{dt.now().strftime('%H:%M:%S')}] ERROR: Invalid mode '{mode}'. Valid modes are 'analysis', 'all', or 'test'")
