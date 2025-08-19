@@ -2,19 +2,20 @@
 
 ## About this project
 
-This Python project aims to support the analysis of the **expansion dynamics** of non-native species by employing a 
-process-oriented and spatially explicit approach. On the basis of observation data and a cost surface,
+Understanding how non-native species spread across landscapes is crucial for effective management strategies. 
+This Python project aims to support the analysis of the **expansion dynamics of non-native species** by employing a 
+data-driven, spatio-temporal approach. Using observation data and a landscape model ("cost surface"),
 
-(1) **sequential least-cost modelling** is used to reconstruct the spread with least-cost paths in annual time steps,  
-(2) **distinct populations** are delineated by excluding paths with high accumulated cost, and  
-(3) **expansion rates** are calculated for all delineated populations using the distance regression method.
+1. **sequential least-cost modelling** is applied in annual time steps to reconstruct the spread as least-cost paths, 
+2. **distinct populations** are delineated by excluding paths with high accumulated cost, and 
+3. **expansion rates** are calculated for all delineated populations using the distance regression method.
 
-This project is published as part of:
+This repository is published as part of:
 
-> Rohrbach, Christa; Wallentin, Gudrun; Bila Dubaić, Jovana; Lanner, Julia (2024). *Leveraging sequential least-cost 
-> modelling to uncover multiple introductions: a case study of an invasive wild bee species.* [in preparation]
-
-For detailed information on the methodology please refer to this publication.
+> Rohrbach, C., Wallentin, G., Bila Dubaić, J., & Lanner, J. (2025).
+> Leveraging sequential least-cost modelling to uncover multiple introductions:
+> a case study of an invasive wild bee species. *Landscape Ecology*, 40(8). 
+> [https://doi.org/10.1007/s10980-025-02188-9](https://doi.org/10.1007/s10980-025-02188-9)
 
 ## Project structure
 
