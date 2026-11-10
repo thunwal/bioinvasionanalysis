@@ -8,3 +8,4 @@ statsmodels
 ipywidgets
 ipython
 matplotlib
+notebook
