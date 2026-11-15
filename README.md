@@ -119,6 +119,12 @@ data. Settings default to `params.py` and can be overridden on the command line 
    python c:\path\to\myprojects\bioinvasionanalysis\report.py
    ```
 
+**Interactive exploration:** the [results explorer notebook](notebooks/results_explorer.ipynb) loads a run and lets
+you re-delineate populations with a different accumulated cost threshold or robust population definition within
+seconds (the least-cost paths are not recalculated). It explains each result in plain sentences, warns about typical
+problems (e.g. a threshold outside the tested range, implausibly long paths, poor linear fits), suggests stable
+threshold ranges and expansion phases, and exports figures, tables and the settings for `params.py`.
+
 To reproduce the figures of the paper (run with threshold 4.4, comparison run with threshold 3.3):
 ```bash
 python report.py --run msculp_4-4 --threshold 4.4 --threshold-is-absolute --compare-run msculp_3-3 \

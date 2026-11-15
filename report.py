@@ -9,8 +9,12 @@ Example:
 import argparse
 import os
 
-import params
-from src.report import report
+import matplotlib
+
+matplotlib.use("Agg")  # no display needed
+
+import params  # noqa: E402
+from src.report import report  # noqa: E402
 
 
 def parse_breakpoints(values):

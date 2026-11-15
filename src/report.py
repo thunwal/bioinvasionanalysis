@@ -16,7 +16,6 @@ import string
 from datetime import datetime as dt
 
 import geopandas as gpd
-import matplotlib
 import matplotlib.patheffects as pe
 import matplotlib.pyplot as plt
 import numpy as np
@@ -30,7 +29,6 @@ from shapely.geometry import LineString
 
 from src.naturalearth import natural_earth
 
-matplotlib.use("Agg")
 
 GREY = "#8b9a9a"  # close to R's "azure4" used in the paper
 GROUP_PALETTE = ["#4daf4a", "#984ea3", "#ff7f00"]  # alternating colours for all populations (Fig. 5 maps)
@@ -98,26 +96,51 @@ def load_run(workdir, run, year_field, robust_definition):
             raise ValueError(f"Layer '{run}_{name}' missing in '{gpkg}'. Run main.py in 'analysis' or 'all' mode.")
         return gpd.read_file(gpkg, layer=f"{run}_{name}")
 
-    paths = layer("paths")
-    paths_grouped = layer("paths_grouped")
-    points = layer("points_grouped").rename(columns={year_field: "year"})
+    sens_csv = os.path.join(workdir, f"{run}_sensitivity_test.csv")
+    return build_run_data(
+        run=run,
+        paths=layer("paths"),
+        paths_grouped=layer("paths_grouped"),
+        points_grouped=layer("points_grouped"),
+        rates=pd.read_csv(os.path.join(workdir, f"{run}_expansion_rates.csv")),
+        cumdist=pd.read_csv(os.path.join(workdir, f"{run}_cumulative_distances.csv")),
+        sensitivity=pd.read_csv(sens_csv) if os.path.exists(sens_csv) else None,
+        year_field=year_field,
+        robust_definition=robust_definition,
+    )
+
+
+def build_run_data(run, paths, paths_grouped, points_grouped, rates, cumdist, sensitivity, year_field,
+                   robust_definition):
+    """
+    Combines the outputs of a run (as written by main.py, or calculated in memory) into the structure used by the
+    figure and table functions.
+    """
+    paths_grouped = paths_grouped.copy()
+    points = points_grouped.rename(columns={year_field: "year"})
     paths_grouped["group_id"] = pd.to_numeric(paths_grouped["group_id"]).astype(int)
     points["group_id"] = pd.to_numeric(points["group_id"], errors="coerce").astype("Int64")
 
-    rates = group_names(pd.read_csv(os.path.join(workdir, f"{run}_expansion_rates.csv")))
+    rates = group_names(rates)
     rates["group_id"] = rates["group_id"].astype(int)
-    rates["robust"] = rates["median_points_per_year"] > robust_definition
     rates["expansion_rate_km"] = rates["expansion_rate"] / 1000
 
-    cumdist = pd.read_csv(os.path.join(workdir, f"{run}_cumulative_distances.csv"))
+    cumdist = cumdist.copy()
     cumdist["group_id"] = cumdist["group_id"].astype(int)
-    cumdist = cumdist.merge(rates[["group_id", "group_name", "robust"]], on="group_id", how="left")
+    cumdist = cumdist.merge(rates[["group_id", "group_name"]], on="group_id", how="left")
 
-    sens_csv = os.path.join(workdir, f"{run}_sensitivity_test.csv")
-    sensitivity = pd.read_csv(sens_csv) if os.path.exists(sens_csv) else None
-
-    return {"run": run, "paths": paths, "paths_grouped": paths_grouped, "points": points, "rates": rates,
+    data = {"run": run, "paths": paths, "paths_grouped": paths_grouped, "points": points, "rates": rates,
             "cumdist": cumdist, "sensitivity": sensitivity}
+    set_robust_definition(data, robust_definition)
+    return data
+
+
+def set_robust_definition(data, robust_definition):
+    """(Re)classifies populations as robust (median observations per year above the definition) or sparse."""
+    data["rates"]["robust"] = data["rates"]["median_points_per_year"] > robust_definition
+    data["cumdist"]["robust"] = data["cumdist"]["group_id"].map(data["rates"].set_index("group_id")["robust"])
+    data["robust_definition"] = robust_definition
+    return data
 
 
 def applied_threshold(data, threshold=None, threshold_is_absolute=False):
@@ -141,7 +164,7 @@ def applied_threshold(data, threshold=None, threshold_is_absolute=False):
         _log(f"WARNING: The threshold in the parameters does not match run '{data['run']}' "
              f"({n_retained} of {len(cost)} paths retained). Using the highest retained accumulated cost "
              f"({value:.3f}) instead.")
-    return value, (cost <= value).mean()
+    return value, (cost < value).mean()
 
 
 # ============================================ TABLES ==================================================================
@@ -483,13 +506,39 @@ def figure_populations(data, basemap, breakpoints):
     return fig
 
 
+def write_outputs(data, basemap, threshold_value, threshold_quantile, robust_definition, out_dir, compare=None,
+                  compare_label=None, split_at=None, breakpoints=None, formats=("png",), dpi=300):
+    """Writes summary, tables and figures of a run to 'out_dir'. Returns the summary text."""
+    breakpoints = breakpoints or {}
+    os.makedirs(out_dir, exist_ok=True)
+
+    def out(name):
+        return os.path.join(out_dir, f"{data['run']}_{name}")
+
+    text = summary(data, threshold_value, threshold_quantile, robust_definition)
+    with open(out("summary.txt"), "w", encoding="utf-8") as f:
+        f.write(text + "\n")
+
+    population_table(data["rates"]).to_csv(out("populations.csv"), index=False)
+    if breakpoints:
+        fit_phases(data["cumdist"], breakpoints).to_csv(out("phases.csv"), index=False)
+
+    with plt.rc_context(STYLE):
+        figures = {
+            "fig_sensitivity": figure_sensitivity(data, basemap, threshold_value, robust_definition, compare,
+                                                  compare_label, split_at),
+            "fig_populations": figure_populations(data, basemap, breakpoints),
+        }
+        for name, fig in figures.items():
+            for fmt in formats:
+                fig.savefig(out(f"{name}.{fmt}"), dpi=dpi)
+            plt.close(fig)
+    return text
+
+
 def report(workdir, run, cost_name, out_dir, year_field="year", robust_definition=10, threshold=None,
            threshold_is_absolute=False, compare_run=None, compare_label=None, split_at=None, breakpoints=None,
            formats=("png",), dpi=300):
-    breakpoints = breakpoints or {}
-    os.makedirs(out_dir, exist_ok=True)
-    plt.rcParams.update(STYLE)
-
     _log(f"Loading results of run '{run}' from '{workdir}'...")
     data = load_run(workdir, run, year_field, robust_definition)
     compare = load_run(workdir, compare_run, year_field, robust_definition) if compare_run else None
@@ -497,29 +546,11 @@ def report(workdir, run, cost_name, out_dir, year_field="year", robust_definitio
     if data["sensitivity"] is None:
         _log("No sensitivity test results found (run main.py in 'test' or 'all' mode); panel a is left out.")
 
-    def out(name):
-        return os.path.join(out_dir, f"{run}_{name}")
-
-    text = summary(data, threshold_value, threshold_quantile, robust_definition)
-    with open(out("summary.txt"), "w", encoding="utf-8") as f:
-        f.write(text + "\n")
-    print(text)
-
-    population_table(data["rates"]).to_csv(out("populations.csv"), index=False)
-    if breakpoints:
-        fit_phases(data["cumdist"], breakpoints).to_csv(out("phases.csv"), index=False)
-
     _log("Loading basemap...")
     basemap = Basemap(os.path.join(workdir, cost_name), data["paths"].crs)
 
-    _log("Creating figures...")
-    figures = {
-        "fig_sensitivity": figure_sensitivity(data, basemap, threshold_value, robust_definition, compare,
-                                              compare_label, split_at),
-        "fig_populations": figure_populations(data, basemap, breakpoints),
-    }
-    for name, fig in figures.items():
-        for fmt in formats:
-            fig.savefig(out(f"{name}.{fmt}"), dpi=dpi)
-        plt.close(fig)
+    _log("Creating figures and tables...")
+    text = write_outputs(data, basemap, threshold_value, threshold_quantile, robust_definition, out_dir, compare,
+                         compare_label, split_at, breakpoints, formats, dpi)
+    print(text)
     _log(f"Report saved to '{out_dir}'.")
