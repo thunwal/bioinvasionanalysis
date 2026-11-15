@@ -66,7 +66,9 @@ def thin(in_gpkg, in_points, in_cost, out_gpkg, out_points, out_points_thinned, 
 
     # Group points by fishnet cell and select the point with the minimum year in each group
     print(f"[{dt.now().strftime('%H:%M:%S')}] Selecting earliest observation per fishnet polygon...")
-    thinned = thinned.groupby("index_right").apply(lambda group: group.loc[group[year_field].idxmin()])
+    # (idxmin instead of groupby().apply(), which drops the grouping column since pandas 3)
+    thinned = thinned.reset_index(drop=True)
+    thinned = thinned.loc[thinned.groupby("index_right")[year_field].idxmin()]
 
     # Drop index and reset CRS (CRS information gets lost during sjoin or groupby)
     thinned.reset_index(drop=True, inplace=True)

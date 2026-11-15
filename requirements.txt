@@ -8,4 +8,5 @@ statsmodels
 ipywidgets
 ipython
 matplotlib
+contextily
 notebook

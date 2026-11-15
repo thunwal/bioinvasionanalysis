@@ -10,7 +10,7 @@ data-driven, spatio-temporal approach. Using observation data and a landscape mo
 2. **distinct populations** are delineated by excluding paths with high accumulated cost, and 
 3. **expansion rates** are calculated for all delineated populations using the distance regression method.
 
-This repository is published as part of:
+Version 1.1.0 of this repository was published as part of:
 
 > Rohrbach, C., Wallentin, G., Bila Dubaić, J., & Lanner, J. (2025).
 > Leveraging sequential least-cost modelling to uncover multiple introductions:
@@ -84,9 +84,33 @@ and a very basic [cost surface](data/cost_surface_gtopo30_esri102031_5km_exp_res
    python c:\path\to\myprojects\bioinvasionanalysis\main.py
    ```
 
+## Creating an animation
+
+`animate.py` renders the results of a run as an animated map (MP4 or GIF): least-cost paths grow year by year
+towards their destination observation, and each observation appears as soon as its path reaches it. Robust populations
+are coloured, sparse populations and isolated observations are grey, as in the population map of the paper.
+The basemap (by default a light relief with water bodies and country borders, or any tile provider) is downloaded
+automatically and aligned with the data. Natural Earth layers are cached in `~/.cache/bioinvasionanalysis`.
+
+1. Run the analysis first (see above), so that the run's GPKG and expansion rate CSV exist.
+2. Check the parameters in the section `ANIMATION` of `params.py`. Tip: set `preview_year` to check the layout
+   with a single frame before rendering the full video.
+3. Run the `animate.py` script. MP4 output requires [ffmpeg](https://ffmpeg.org) to be installed.
+   ```bash
+   python c:\path\to\myprojects\bioinvasionanalysis\animate.py
+   ```
+
 ## Input data requirements
 
 Note: The observation data are automatically projected to the coordinate reference system of the cost surface.
+
+**Observation data from iNaturalist:** Instead of preparing your own file, you can let the script download
+observations from [iNaturalist](https://www.inaturalist.org). Set `presence_source = "inaturalist"` and the
+parameters in the section `INATURALIST` of `params.py` (species, quality grade, etc.). Observations are downloaded
+for the extent of the cost surface, saved as `presence_name` and reused in later runs. Each observation is assigned
+the country it is located in (Natural Earth). Set `start_year` and `end_year` to `None` to analyse all years covered
+by the observations. Depending on the number of observations, the download may take several minutes, as the
+iNaturalist API is queried at a rate of about one request per second.
 
 - **Observation data**:  
    Format: Point data (GeoPackage, *.GPKG)  
