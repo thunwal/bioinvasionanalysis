@@ -45,6 +45,14 @@ def thin(in_gpkg, in_points, in_cost, out_gpkg, out_points, out_points_thinned, 
     points = points[points.geometry.within(raster_bbox)]
     print(f"[{dt.now().strftime('%H:%M:%S')}] Applied filter to include presence data within raster extent only.")
 
+    # Filter out points on NoData cells of the raster (e.g. sea): least-cost paths cannot reach them
+    values = np.array([v[0] for v in in_cost.sample(zip(points.geometry.x, points.geometry.y))], dtype=float)
+    on_data = ~np.isnan(values)
+    if in_cost.nodata is not None:
+        on_data &= values != in_cost.nodata
+    print(f"[{dt.now().strftime('%H:%M:%S')}] Removed {(~on_data).sum()} observations on NoData cells of the raster.")
+    points = points[on_data]
+
     # Save the imported points to the GeoPackage which is specific to the script run
     points.to_file(out_gpkg, layer=out_points)
     print(f"[{dt.now().strftime('%H:%M:%S')}] Imported presence data saved to '{out_gpkg}', layer '{out_points}'.")
