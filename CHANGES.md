@@ -60,7 +60,7 @@ with the published version (details and numbers in [tests/REFERENCE.md](tests/RE
 
 ## Phase 6: deployment
 - `Dockerfile` for the web app (Python 3.13, gunicorn on port 7860, demo cost surface and country borders included)
-  and `docs/deployment.md` with the steps for a free Hugging Face Space or any Docker host.
+  and `docs/deployment.md` with the steps for a Hugging Face Space (PRO account, $9/month) or any Docker host.
 - `requirements.txt` now holds what the app and the analysis need; `requirements-dev.txt` adds tests and the notebook.
 - Manifests record the package version when git is not available (e.g. in the Docker image).
 - The image was built and tested locally: the whole browser flow works in the container, and all tests (including

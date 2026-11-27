@@ -13,9 +13,13 @@ docker run --rm -v "$PWD":/src:ro -v ~/Git/manuscript/data:/ref:ro -e BIOINVASIO
     sh -c "pip install -q --user pytest && python -m pytest -p no:cacheprovider -m 'slow or not slow' tests"
 ```
 
-## Hugging Face Spaces (free CPU tier: 2 vCPU, 16 GB RAM)
+## Hugging Face Spaces (CPU basic: 2 vCPU, 16 GB RAM)
 
-1. Create a Space at https://huggingface.co/new-space: SDK **Docker**, template **Blank**, hardware **CPU basic (free)**,
+Docker Spaces need a PRO account ($9/month, checked 2026-11-27). The CPU basic hardware itself has no hourly cost, so
+the PRO fee is the only cost as long as the hardware stays on CPU basic. Upgraded hardware is billed per hour (e.g.
+CPU upgrade $0.03/hour, about $22/month); prices: https://huggingface.co/pricing#spaces
+
+1. Create a Space at https://huggingface.co/new-space: SDK **Docker**, template **Blank**, hardware **CPU basic**,
    visibility public.
 2. Hugging Face reads the Space settings from a header at the top of the Space's `README.md`. Create the Space with
    the website's default README, then, in this repository:
@@ -33,7 +37,7 @@ docker run --rm -v "$PWD":/src:ro -v ~/Git/manuscript/data:/ref:ro -e BIOINVASIO
 3. The build log and the app log are shown on the Space page ("Logs").
 
 Notes:
-- A free Space sleeps after a period without visitors; the first visit afterwards takes about half a minute.
+- A Space on CPU basic sleeps after a period without visitors; the first visit afterwards takes about half a minute.
 - The disk of a Space is not persistent: session folders disappear on restart, which is fine because they are
   temporary anyway (24 hours).
 - Limits for visitors (raster cells, observations, upload size, concurrent computations) are set in
