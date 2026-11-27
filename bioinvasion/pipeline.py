@@ -360,3 +360,83 @@ def report(cfg, threshold=None, robust_definition=None, compare_threshold=None, 
         checks += insights.sweep_checks(data["sensitivity"], data["threshold"], data["robust_definition"])
     log(f"Report: saved to '{out_dir}'.")
     return out_dir, text, checks
+
+
+# ============================================ 6 YEAR MAPS AND EXPORT ==================================================
+
+def year_maps(cfg, threshold=None, robust_definition=None, log=log):
+    """One PNG per year end (no title, no source credits). Returns the folder."""
+    import matplotlib
+    matplotlib.use("Agg")
+    from bioinvasion.report.year_maps import year_maps as draw_year_maps
+    folder = delineate(cfg, threshold, robust_definition, log)
+    data = load_delineation(folder)
+    basemap = Basemap(cfg.path(cfg.cost.file), data["paths"].crs)
+    out_dir = os.path.join(folder, "years")
+    if os.path.exists(out_dir):
+        shutil.rmtree(out_dir)
+    draw_year_maps(data, basemap, out_dir, cfg.year_maps.dpi, cfg.year_maps.width_cm, log=log)
+    return out_dir
+
+
+def settings_text(folder):
+    """The settings and numbers of a delineation in words, for the methods section."""
+    paths_dir = os.path.dirname(folder)
+    project_dir = os.path.dirname(paths_dir)
+    imp = read_manifest(os.path.join(project_dir, "presence", "manifest.json"))
+    pth = read_manifest(os.path.join(paths_dir, "manifest.json"))
+    dln = read_manifest(os.path.join(folder, "manifest.json"))
+    p, d = pth["results"], dln["results"]
+    lines = ["Settings and numbers of this analysis (bioinvasionanalysis, Rohrbach et al. 2025)", "",
+             "Observations:"]
+    lines += [f"  {line}" for line in imp["results"]["report"]]
+    lines += [f"  Years analysed: {pth['settings']['start_year']}-{pth['settings']['end_year']}"]
+    lines += [f"  Removed: {n} ({reason})" for reason, n in p["removed"] if n]
+    lines += [f"  Observations analysed: {p['observations']}; after keeping the earliest per cost surface cell: "
+              f"{p['observations_thinned']}",
+              "", "Least-cost paths:",
+              f"  Cost surface: {pth['settings']['cost_file']} (cell size {p['cell_size']:g})",
+              f"  Paths: {p['paths']}; highest accumulated cost {p['max_accumulated_cost']:.4g}",
+              "", "Population delineation:",
+              f"  Accumulated cost threshold: {dln['settings']['threshold']:g} (Q{d['threshold_quantile']:.3f}); "
+              f"paths kept: {d['paths_kept']}",
+              f"  Robust population: median observations per year > {dln['settings']['robust_definition']:g}",
+              f"  Populations: {d['populations']}; isolated observations: {d['isolated_observations']}"]
+    sweeps = sorted(glob.glob(os.path.join(paths_dir, "sweep*.manifest.json")))
+    if sweeps:
+        lines += ["", "Sensitivity sweep:"]
+        for path in sweeps:
+            s = read_manifest(path)["settings"]
+            lines.append(f"  {os.path.basename(path).replace('.manifest.json', '.csv')}: {s['steps']} thresholds "
+                         f"from {s['thresholds_from']:g} to {s['thresholds_to']:g}, robust definitions "
+                         f"{min(s['robust_definitions']):g}-{max(s['robust_definitions']):g}")
+            if "range" in s:
+                lines.append(f"    {s['range']['rule']}")
+    lines += ["", f"Code version: {dln['code_version']}; created {dln['created']}"]
+    return "\n".join(lines)
+
+
+def export(cfg, threshold=None, robust_definition=None, log=log):
+    """Report, year maps and all results of a delineation in one zip file. Returns the path of the zip."""
+    import zipfile
+    out_dir, _, _ = report(cfg, threshold, robust_definition, log=log)
+    folder = os.path.dirname(out_dir)
+    year_maps(cfg, threshold, robust_definition, log)
+    paths_dir = os.path.dirname(folder)
+    zip_path = os.path.join(folder, "export.zip")
+    files = {"settings.txt": None}
+    for name in ("populations.gpkg", "expansion_rates.csv", "cumulative_distances.csv", "manifest.json"):
+        files[name] = os.path.join(folder, name)
+    for path in glob.glob(os.path.join(out_dir, "*")) + glob.glob(os.path.join(folder, "years", "*.png")):
+        files[os.path.relpath(path, folder)] = path
+    for path in glob.glob(os.path.join(paths_dir, "sweep*.csv")):
+        files[f"sweep/{os.path.basename(path)}"] = path
+    files["paths/manifest.json"] = os.path.join(paths_dir, "manifest.json")
+    files["presence/import_report.txt"] = cfg.path(os.path.join("presence", "import_report.txt"))
+    with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as z:
+        z.writestr("settings.txt", settings_text(folder) + "\n")
+        for arcname, path in files.items():
+            if path:
+                z.write(path, arcname)
+    log(f"Export: {len(files)} files saved to '{zip_path}'.")
+    return zip_path

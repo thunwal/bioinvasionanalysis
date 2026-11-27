@@ -37,3 +37,10 @@ with the published version (details and numbers in [tests/REFERENCE.md](tests/RE
   the old demo outputs. The animation moved to the personal repository. The demo notebook works again and uses the
   demo project `examples/isodontia`.
 - Results: no further changes.
+
+## Phase 4: year maps and export
+- `cli.py yearmaps`: one PNG per year end in the style of the population map of the paper (robust populations
+  coloured, the same colour in every year), without title or source credits; the year is the file name.
+- `cli.py export`: report, year maps, populations, expansion rates, sweeps and manifests in one zip file, with a
+  `settings.txt` that states all settings and numbers in words (for the methods section).
+- Results: no changes.

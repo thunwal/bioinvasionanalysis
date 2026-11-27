@@ -9,6 +9,8 @@ up to date and skips stages whose inputs and settings have not changed.
     python cli.py sweep     <project> [--from --to --step] sensitivity sweep: overview + high resolution
     python cli.py delineate <project> [--threshold --robust]   populations and expansion rates
     python cli.py report    <project> [--threshold --robust --compare-threshold]   figures and tables of the paper
+    python cli.py yearmaps  <project> [--threshold --robust]   one map per year end (PNG)
+    python cli.py export    <project> [--threshold --robust]   report, year maps and all results in one zip file
 
 Example:
     python cli.py sweep ~/projects/msculpturalis
@@ -76,6 +78,14 @@ def cmd_report(a):
     print_messages(checks)
 
 
+def cmd_yearmaps(a):
+    pipeline.year_maps(load_config(a.project), a.threshold, a.robust)
+
+
+def cmd_export(a):
+    pipeline.export(load_config(a.project), a.threshold, a.robust)
+
+
 def main():
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = p.add_subparsers(dest="command", required=True)
@@ -96,7 +106,9 @@ def main():
     c.add_argument("--to", type=float, help="high-resolution range: last threshold")
     c.add_argument("--step", type=float, help="high-resolution range: step")
     for name, func, help in (("delineate", cmd_delineate, "populations and expansion rates"),
-                             ("report", cmd_report, "figures and tables of the paper")):
+                             ("report", cmd_report, "figures and tables of the paper"),
+                             ("yearmaps", cmd_yearmaps, "one map per year end"),
+                             ("export", cmd_export, "report, year maps and results in one zip file")):
         c = command(name, func, help)
         c.add_argument("--threshold", type=float, help="accumulated cost threshold (default: [delineation] threshold)")
         c.add_argument("--robust", type=float, help="robust population definition (default: [delineation])")
