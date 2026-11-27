@@ -11,3 +11,4 @@ matplotlib
 contextily
 notebook
 openpyxl
+pytest
