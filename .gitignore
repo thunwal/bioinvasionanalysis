@@ -178,3 +178,6 @@ data/*
 examples/*/*
 !examples/*/project.toml
 !examples/*/*.csv
+
+# Web app session folders
+webapp_jobs/

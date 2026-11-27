@@ -168,6 +168,13 @@ def paths_folder(cfg, start, end):
     return cfg.path(f"paths__{cfg.cost_label}__{start}-{end}")
 
 
+def current_paths_folder(cfg):
+    """The paths folder for the current settings (it may not exist yet). Requires imported observations."""
+    years = gpd.read_file(presence_path(cfg), layer="presence", columns=["year"], ignore_geometry=True)
+    start, end = year_range(cfg, years, log=lambda msg: None)
+    return paths_folder(cfg, start, end)
+
+
 def compute_paths(cfg, log=log, progress=None, force=False):
     """Stage 2: filters and thins the observations and calculates the least-cost paths. Returns the folder."""
     presence_file = import_presence(cfg, log)
@@ -260,6 +267,15 @@ def sweep(cfg, fine_from=None, fine_to=None, fine_step=None, log=log, progress=N
     name = f"sweep__{chosen['from']:g}-{chosen['to']:g}x{chosen['step']:g}"
     fine = _run_sweep(folder, name, fine_thresholds, definitions, {"range": chosen}, log, progress)
     return coarse, fine, chosen
+
+
+def latest_fine_sweep(folder):
+    """The most recent high-resolution sweep of a paths folder: (DataFrame, range dict) or (None, None)."""
+    files = sorted(glob.glob(os.path.join(folder, "sweep__*.csv")), key=os.path.getmtime)
+    if not files:
+        return None, None
+    manifest = read_manifest(files[-1].replace(".csv", ".manifest.json"))
+    return pd.read_csv(files[-1]), manifest["settings"]["range"]
 
 
 def load_sweeps(folder):
@@ -433,6 +449,7 @@ def export(cfg, threshold=None, robust_definition=None, log=log):
         files[f"sweep/{os.path.basename(path)}"] = path
     files["paths/manifest.json"] = os.path.join(paths_dir, "manifest.json")
     files["presence/import_report.txt"] = cfg.path(os.path.join("presence", "import_report.txt"))
+    files["project.toml"] = cfg.path("project.toml")
     with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as z:
         z.writestr("settings.txt", settings_text(folder) + "\n")
         for arcname, path in files.items():

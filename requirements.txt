@@ -9,6 +9,9 @@ scikit-image
 scipy
 shapely
 statsmodels
+# web app
+dash[diskcache]
+gunicorn
 # demo notebook
 notebook
 # tests

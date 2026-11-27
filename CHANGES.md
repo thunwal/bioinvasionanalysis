@@ -44,3 +44,15 @@ with the published version (details and numbers in [tests/REFERENCE.md](tests/RE
 - `cli.py export`: report, year maps, populations, expansion rates, sweeps and manifests in one zip file, with a
   `settings.txt` that states all settings and numbers in words (for the methods section).
 - Results: no changes.
+
+## Phase 5: web app
+- `python -m webapp` starts a Dash app with four pages: **1 Cost surface** (demo or upload, checked), **2 Observations**
+  (CSV/GeoPackage upload with the same strict checks, or iNaturalist download; map and observations per year; then
+  "Compute" runs paths and sweeps with a progress bar), **3 Thresholds** (overview and high-resolution sweep with the
+  suggested range and its rule, stable ranges; you set the threshold and robust definition and see the populations
+  on a map, the population table and the plain-language checks), **4 Export** (zip as in the CLI, plus `project.toml`).
+- No animation in the web app; it stays a personal script.
+- Limits for the public server: 2 million raster cells, 20,000 observations, 50 MB uploads, two computations at a
+  time, sessions deleted after 24 hours.
+- Tested end to end in a headless browser (`tests/e2e_webapp.py`), with the development server and with gunicorn.
+- Results: no changes.

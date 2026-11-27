@@ -72,6 +72,16 @@ Or open [notebooks/bioinvasionanalysis_demo.ipynb](notebooks/bioinvasionanalysis
 
 `python cli.py --help` lists all commands and options.
 
+## Web app
+
+The same analysis in the browser, in four steps (cost surface, observations, thresholds, export). Each browser session
+gets a project folder of its own under `webapp_jobs/` (deleted after 24 hours), with a `project.toml` that also works
+with `cli.py`.
+
+```bash
+python -m webapp          # then open http://127.0.0.1:8050
+```
+
 ## Input data
 
 Inputs that do not meet these requirements are rejected with an explanation; nothing is guessed or repaired.

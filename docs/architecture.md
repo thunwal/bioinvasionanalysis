@@ -19,6 +19,15 @@
 - **cli.py** and **webapp/** only translate between people and `pipeline`. If something is computed differently in
   the CLI and the web app, that is a bug.
 
+## The web app
+
+`webapp/app.py` creates the Dash app; each page in `webapp/pages/` contains its layout and its callbacks, and calls
+only `pipeline` (and `sources` for file checks). A session's state is not kept in memory but in its job folder
+(`webapp/jobs.py`), which is a normal project folder. Long computations (paths, sweeps, iNaturalist download, export)
+run as Dash *background callbacks* in separate processes, with a progress display; they are limited to two at a time.
+Callbacks are plain functions: to debug one, call the pipeline function it uses in a notebook with the job folder
+(`webapp_jobs/<id>`) as project folder. `tests/e2e_webapp.py` clicks through the whole app in a headless browser.
+
 ## Where do I change what?
 
 | I want to … | File |
@@ -31,6 +40,8 @@
 | change a figure or table | `bioinvasion/report/figures.py` |
 | change the suggested sweep range or the checks | `bioinvasion/report/insights.py` |
 | add a command line option | `cli.py` |
+| change a page of the web app | `webapp/pages/<page>.py` (layout at the top, callbacks below) |
+| change server limits (cells, observations, upload size) | `webapp/jobs.py` |
 
 ## The standard presence schema
 
