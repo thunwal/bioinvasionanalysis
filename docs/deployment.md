@@ -25,7 +25,7 @@ CPU upgrade $0.03/hour, about $22/month); prices: https://huggingface.co/pricing
    the website's default README, then, in this repository:
    ```bash
    git remote add space https://huggingface.co/spaces/<user>/<space>
-   git fetch space
+   git -c fetch.negotiationAlgorithm=noop fetch space   # plain 'git fetch' fails: "expected 'acknowledgments'"
    git checkout -b space space/main          # the Space's own history (its README.md with the header)
    git checkout refactor -- Dockerfile .dockerignore requirements.txt pyproject.toml bioinvasion webapp \
        data/cost_surface_gtopo30_esri102031_5km_exp_base1_k9.tif
@@ -33,7 +33,8 @@ CPU upgrade $0.03/hour, about $22/month); prices: https://huggingface.co/pricing
    git push space space:main                 # Hugging Face builds the image and starts the app
    ```
    For later updates, repeat the `checkout refactor -- ...`, `commit` and `push` lines on the `space` branch.
-   The header in the Space's README.md must contain `sdk: docker` and `app_port: 7860`.
+   The header in the Space's README.md must contain `sdk: docker`; add `app_port: 7860` to be explicit (7860 is the
+   default).
 3. The build log and the app log are shown on the Space page ("Logs").
 
 Notes:
