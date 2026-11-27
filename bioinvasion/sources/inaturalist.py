@@ -1,10 +1,8 @@
 """
-Downloads observations from iNaturalist (https://www.inaturalist.org) and saves them in the input format
-expected by the analysis: a GeoPackage with identical file and layer name, containing the fields 'year'
-(observation year) and 'country' (Natural Earth country name), and point geometries in WGS84.
+Downloads observations from iNaturalist (https://www.inaturalist.org) in the standard presence schema
+(see bioinvasion/sources/files.py).
 """
 import json
-import os
 import time
 import urllib.parse
 import urllib.request
@@ -15,7 +13,7 @@ import numpy as np
 import pandas as pd
 from shapely.geometry import box
 
-from src.naturalearth import natural_earth
+from bioinvasion.naturalearth import natural_earth
 
 API = "https://api.inaturalist.org"
 HEADERS = {"User-Agent": "bioinvasionanalysis (https://github.com/thunwal/bioinvasionanalysis)"}
@@ -63,19 +61,23 @@ def raster_bbox_4326(raster):
     return tuple(edge.total_bounds)
 
 
-def fetch_inaturalist(taxon, out_gpkg, bbox_4326, quality_grade="research", start_year=None, end_year=None,
-                      exclude_obscured=True, max_positional_accuracy=None):
+def fetch_inaturalist(taxon, bbox_4326, research_grade_only=True, include_obscured=False,
+                      max_positional_accuracy=None, start_year=None, end_year=None, max_observations=None,
+                      log=_log, progress=None):
     """
-    Downloads all observations of 'taxon' within 'bbox_4326' (xmin, ymin, xmax, ymax) and saves them to 'out_gpkg'.
+    Downloads all observations of 'taxon' (scientific name or iNaturalist taxon ID) within 'bbox_4326'
+    (xmin, ymin, xmax, ymax) and returns them in the standard presence schema, plus a list of report lines.
 
-    quality_grade: "research", "needs_id", "casual", or a comma-separated combination, e.g. "research,needs_id"
-    exclude_obscured: drops observations whose coordinates were randomised by iNaturalist (by up to ~20 km)
+    research_grade_only: only observations with quality grade "research" (community-confirmed identification)
+    include_obscured: keep observations whose coordinates were randomised by iNaturalist (by up to ~20 km)
                       for privacy or species protection reasons
     max_positional_accuracy: drops observations whose positional accuracy (in m) is worse than this value;
-                             observations without accuracy information are kept
+                             observations without accuracy information are kept. None = no limit.
+    max_observations: abort if the query returns more observations (protects the public web app)
     """
     taxon_id, taxon_name = resolve_taxon(taxon)
     xmin, ymin, xmax, ymax = bbox_4326
+    quality_grade = "research" if research_grade_only else "research,needs_id,casual"
     query = {"taxon_id": taxon_id, "quality_grade": quality_grade,
              "swlng": xmin, "swlat": ymin, "nelng": xmax, "nelat": ymax,
              "per_page": PAGE_SIZE, "order_by": "id", "order": "asc",
@@ -86,10 +88,13 @@ def fetch_inaturalist(taxon, out_gpkg, bbox_4326, quality_grade="research", star
         query["d2"] = f"{end_year}-12-31"
 
     total = _get("/v2/observations", {**query, "per_page": 0})["total_results"]
-    _log(f"Downloading {total} observations of {taxon_name} (iNaturalist taxon {taxon_id}, quality grade "
-         f"'{quality_grade}'). This takes about {max(1, round(total / PAGE_SIZE * 2.5 / 60))} min...")
+    if max_observations is not None and total > max_observations:
+        raise ValueError(f"The query returns {total} observations, more than the limit of {max_observations}. "
+                         f"Use a smaller cost surface or download the data yourself and upload it as CSV.")
+    log(f"Downloading {total} observations of {taxon_name} (iNaturalist taxon {taxon_id}, quality grade "
+        f"'{quality_grade}'). This takes about {max(1, round(total / PAGE_SIZE * 2.5 / 60))} min...")
 
-    rows, id_above, page = [], 0, 0
+    rows, id_above = [], 0
     while True:
         started = time.time()
         results = _get("/v2/observations", {**query, "id_above": id_above})["results"]
@@ -97,35 +102,40 @@ def fetch_inaturalist(taxon, out_gpkg, bbox_4326, quality_grade="research", star
             break
         rows += results
         id_above = results[-1]["id"]
-        page += 1
-        if page % 25 == 0:
-            _log(f"{len(rows)} / {total} observations downloaded...")
+        if progress:
+            progress(len(rows), total)
         time.sleep(max(0.0, REQUEST_INTERVAL - (time.time() - started)))
 
     df = pd.DataFrame(rows, columns=["id", "observed_on", "location", "obscured", "positional_accuracy"])
+    report = [f"Source: iNaturalist, taxon {taxon_name} (ID {taxon_id}), downloaded {dt.now():%Y-%m-%d %H:%M}",
+              f"Query: quality grade '{quality_grade}', bounding box {tuple(round(v, 4) for v in bbox_4326)} "
+              f"(lon/lat), years {start_year or 'all'}-{end_year or 'all'}",
+              f"Observations downloaded: {len(df)}"]
+    n = len(df)
     df = df.dropna(subset=["location", "observed_on"])
     df["year"] = pd.to_datetime(df["observed_on"], errors="coerce").dt.year
     df = df.dropna(subset=["year"])
-    n = len(df)
-    if exclude_obscured:
+    report.append(f"Removed without date or location: {n - len(df)}")
+    if not include_obscured:
+        n = len(df)
         df = df[~df["obscured"].fillna(False).astype(bool)]
+        report.append(f"Removed with obscured coordinates: {n - len(df)}")
     if max_positional_accuracy is not None:
+        n = len(df)
         df = df[~(df["positional_accuracy"] > max_positional_accuracy)]
-    _log(f"{len(rows)} observations downloaded, {n - len(df)} excluded (obscured coordinates or positional "
-         f"accuracy worse than {max_positional_accuracy} m), {len(rows) - n} without date or location.")
+        report.append(f"Removed with positional accuracy worse than {max_positional_accuracy:g} m: {n - len(df)} "
+                      f"(observations without accuracy information are kept)")
 
     lat_lon = df["location"].str.split(",", expand=True).astype(float)
     gdf = gpd.GeoDataFrame(
-        {"inat_id": df["id"].to_numpy(), "year": df["year"].astype("int32").to_numpy(),
-         "positional_accuracy": df["positional_accuracy"].to_numpy()},
+        {"year": df["year"].astype("int32").to_numpy(), "location": "",
+         "source": "iNaturalist", "source_id": df["id"].astype(str).to_numpy()},
         geometry=gpd.points_from_xy(lat_lon[1], lat_lon[0]), crs=4326)
-
-    gdf["country"] = assign_countries(gdf)
-    layer = os.path.splitext(os.path.basename(out_gpkg))[0]
-    gdf.to_file(out_gpkg, layer=layer)
-    _log(f"{len(gdf)} observations from {gdf['year'].min()} to {gdf['year'].max()} saved to '{out_gpkg}', "
-         f"layer '{layer}'.")
-    return gdf
+    if len(gdf):
+        gdf["location"] = assign_countries(gdf)
+    report.append(f"Observations imported: {len(gdf)}; 'location' = Natural Earth country (nearest within 20 km for "
+                  f"points just off the coast, otherwise 'unknown')")
+    return gdf, report
 
 
 def assign_countries(points, max_distance_m=20000):

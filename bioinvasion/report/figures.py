@@ -1,6 +1,6 @@
 """
 Results report for a completed run: recreates the result figures and tables of the paper
-(Rohrbach et al. 2025) for any dataset, using only the outputs written by main.py.
+(Rohrbach et al. 2025) for any dataset. The data are prepared by bioinvasion.pipeline.
 
 - Figure "sensitivity" (Fig. 5 of the paper): (a) sensitivity analysis, (b) populations of an optional
   comparison run, (c) populations of this run, (d) histogram of median observations per year.
@@ -20,15 +20,14 @@ import matplotlib.patheffects as pe
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import pyogrio
 import rasterio as rio
 from matplotlib.collections import LineCollection
 from matplotlib.lines import Line2D
 from rasterio.warp import transform_bounds
 from shapely.geometry import LineString
 
-from src.naturalearth import natural_earth
-from src.robust import is_robust
+from bioinvasion.naturalearth import natural_earth
+from bioinvasion.core.robust import is_robust
 
 
 GREY = "#8b9a9a"  # close to R's "azure4" used in the paper
@@ -66,10 +65,10 @@ def _log(msg):
 def group_names(rates):
     """
     Population names as used in the paper: '{first_observed_in} {min_year}', with suffixes a, b, ...
-    for duplicates (ordered by point count and last year, descending).
+    for duplicates (ordered by point count and last year, descending). Without location only the year is used.
     """
     rates = rates.copy()
-    rates["base_name"] = rates["first_observed_in"] + " " + rates["min_year"].astype(str)
+    rates["base_name"] = (rates["first_observed_in"].fillna("") + " " + rates["min_year"].astype(str)).str.strip()
     rates = rates.sort_values(["base_name", "point_count", "max_year"], ascending=[True, False, False])
     n = rates.groupby("base_name")["base_name"].transform("size")
     rank = rates.groupby("base_name").cumcount()
@@ -85,36 +84,10 @@ def robust_palette(n):
     return [palette[i % len(palette)] for i in range(n)]
 
 
-def load_run(workdir, run, year_field, robust_definition):
-    """Reads all outputs of a run. The sensitivity test CSV is optional."""
-    gpkg = os.path.join(workdir, f"{run}.gpkg")
-    if not os.path.exists(gpkg):
-        raise FileNotFoundError(f"'{gpkg}' not found. Run main.py in 'analysis' or 'all' mode first.")
-    layers = [name for name, _ in pyogrio.list_layers(gpkg)]
-
-    def layer(name):
-        if f"{run}_{name}" not in layers:
-            raise ValueError(f"Layer '{run}_{name}' missing in '{gpkg}'. Run main.py in 'analysis' or 'all' mode.")
-        return gpd.read_file(gpkg, layer=f"{run}_{name}")
-
-    sens_csv = os.path.join(workdir, f"{run}_sensitivity_test.csv")
-    return build_run_data(
-        run=run,
-        paths=layer("paths"),
-        paths_grouped=layer("paths_grouped"),
-        points_grouped=layer("points_grouped"),
-        rates=pd.read_csv(os.path.join(workdir, f"{run}_expansion_rates.csv")),
-        cumdist=pd.read_csv(os.path.join(workdir, f"{run}_cumulative_distances.csv")),
-        sensitivity=pd.read_csv(sens_csv) if os.path.exists(sens_csv) else None,
-        year_field=year_field,
-        robust_definition=robust_definition,
-    )
-
-
 def build_run_data(run, paths, paths_grouped, points_grouped, rates, cumdist, sensitivity, year_field,
                    robust_definition):
     """
-    Combines the outputs of a run (as written by main.py, or calculated in memory) into the structure used by the
+    Combines the outputs of a delineation (read from files or calculated in memory) into the structure used by the
     figure and table functions.
     """
     paths_grouped = paths_grouped.copy()
@@ -142,30 +115,6 @@ def set_robust_definition(data, robust_definition):
     data["cumdist"]["robust"] = data["cumdist"]["group_id"].map(data["rates"].set_index("group_id")["robust"])
     data["robust_definition"] = robust_definition
     return data
-
-
-def applied_threshold(data, threshold=None, threshold_is_absolute=False):
-    """
-    Returns the accumulated cost threshold and its quantile. The value is calculated from the parameters as in
-    main.py and checked against the run's output; if they do not match (e.g. params.py was changed after the run),
-    the threshold is approximated from the output.
-    """
-    cost = data["paths"]["accumulated_cost"].to_numpy()
-    if threshold is None:  # default of main.py: upper outlier fence
-        q1, q3 = np.quantile(cost, [0.25, 0.75])
-        value = q3 + 1.5 * (q3 - q1)
-    elif threshold_is_absolute:
-        value = threshold
-    else:
-        value = np.quantile(cost, threshold)
-
-    n_retained = len(data["paths_grouped"])
-    if (cost < value).sum() != n_retained:
-        value = data["paths_grouped"]["accumulated_cost"].max()
-        _log(f"WARNING: The threshold in the parameters does not match run '{data['run']}' "
-             f"({n_retained} of {len(cost)} paths retained). Using the highest retained accumulated cost "
-             f"({value:.3f}) instead.")
-    return value, (cost < value).mean()
 
 
 # ============================================ TABLES ==================================================================
@@ -536,22 +485,3 @@ def write_outputs(data, basemap, threshold_value, threshold_quantile, robust_def
             plt.close(fig)
     return text
 
-
-def report(workdir, run, cost_name, out_dir, year_field="year", robust_definition=10, threshold=None,
-           threshold_is_absolute=False, compare_run=None, compare_label=None, split_at=None, breakpoints=None,
-           formats=("png",), dpi=300):
-    _log(f"Loading results of run '{run}' from '{workdir}'...")
-    data = load_run(workdir, run, year_field, robust_definition)
-    compare = load_run(workdir, compare_run, year_field, robust_definition) if compare_run else None
-    threshold_value, threshold_quantile = applied_threshold(data, threshold, threshold_is_absolute)
-    if data["sensitivity"] is None:
-        _log("No sensitivity test results found (run main.py in 'test' or 'all' mode); panel a is left out.")
-
-    _log("Loading basemap...")
-    basemap = Basemap(os.path.join(workdir, cost_name), data["paths"].crs)
-
-    _log("Creating figures and tables...")
-    text = write_outputs(data, basemap, threshold_value, threshold_quantile, robust_definition, out_dir, compare,
-                         compare_label, split_at, breakpoints, formats, dpi)
-    print(text)
-    _log(f"Report saved to '{out_dir}'.")

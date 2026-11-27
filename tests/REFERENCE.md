@@ -78,3 +78,6 @@ the robust columns change (`num_groups_robust`, `min_rate`, `max_rate`, `avg_rat
 median equals an integer robust definition exactly. The published sweep (Fig. 3a) was computed with `>=` and the old
 expansion rate method (difference 2). The number of populations per threshold (`num_groups`) is unchanged; the slow
 test checks it against the published sweep.
+
+Measured on the published sweep (74712 rows = 6792 thresholds × 11 robust definitions): with `>` instead of `>=`,
+the number of robust populations differs in 1171 rows (1.6 %), for robust definitions 5–14.

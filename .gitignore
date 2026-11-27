@@ -173,3 +173,8 @@ cython_debug/
 # Data folder: run outputs and private data are not tracked.
 # Files already in the repository (demo data) remain tracked.
 data/*
+
+# Outputs of the example projects
+examples/*/*
+!examples/*/project.toml
+!examples/*/*.csv

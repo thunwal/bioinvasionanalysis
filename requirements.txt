@@ -1,14 +1,15 @@
+# analysis
 geopandas
+matplotlib
 numpy
+pandas
+pyogrio
 rasterio
 scikit-image
+scipy
 shapely
-pandas
 statsmodels
-ipywidgets
-ipython
-matplotlib
-contextily
+# demo notebook
 notebook
-openpyxl
+# tests
 pytest

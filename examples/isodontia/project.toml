@@ -1,0 +1,26 @@
+# Demo project: Isodontia mexicana in Europe (GBIF download of 2024-12-27) on a 5 km cost surface based on terrain.
+# Run: python cli.py sweep examples/isodontia
+# Outputs are written into this folder and are not tracked by git.
+
+[data]
+source = "csv"
+# Converted from data/imexicana_20241227.gpkg (GBIF export): 38 records without year removed,
+# location = GBIF countryCode, source_id = gbifID
+file = "isodontia_mexicana_gbif_20241227.csv"
+start_year = 1993
+end_year = 2024
+
+[cost]
+file = "../../data/cost_surface_gtopo30_esri102031_5km_exp_rescaled.tif"
+label = "gtopo30exp5km"
+
+[sweep]
+robust_from = 5
+robust_to = 15
+robust_step = 1
+coarse_steps = 200
+fine_steps = 1000
+
+[delineation]
+threshold = 0.19   # beginning of the widest stable range of the sweep
+robust_definition = 10

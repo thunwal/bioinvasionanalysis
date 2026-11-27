@@ -25,10 +25,10 @@ PRESENCE = os.path.join(REF_DIR, "msculpturalis_20241203.gpkg")
 COST = os.path.join(REF_DIR, "sdm_esri-102031_inverted_scaled-0-1.tif")
 
 # Settings of the published run (methods and results sections of the paper)
-YEAR, LOCATION = "observation_year", "country"
+STANDARD = {"observation_year": "year", "country": "location"}  # column names in the reference -> standard schema
 START_YEAR, END_YEAR = 2008, 2024
 THRESHOLD = 4.4          # absolute accumulated cost
-SWEEP_STEPS = np.arange(0.00, 67.91 + 0.01, 0.01)
+SWEEP_STEPS = np.arange(6793) * 0.01  # 0 to 67.92, as in the published sweep
 ROBUST_STEPS = np.arange(5, 16, 1)
 
 pytestmark = pytest.mark.skipif(not os.path.exists(REF_GPKG), reason=f"reference data not found in {REF_DIR}")
@@ -38,37 +38,38 @@ pytestmark = pytest.mark.skipif(not os.path.exists(REF_GPKG), reason=f"reference
 # The only part that changes when the code structure changes: run the analysis and return its results.
 # ---------------------------------------------------------------------------------------------------------------------
 def run_pipeline(out_dir, sweep=False):
+    """Runs the paper's analysis as a project through bioinvasion.pipeline (the same code as cli.py)."""
     import sys
     sys.path.insert(0, REPO)
-    from src.thinning import thin
-    from src.leastcostpaths import paths
-    from src.populations import group_paths_save, group_points_save
-    from src.expansionrate import expansion_rate_save
-    from src.sensitivitytest import sensitivity_analysis
+    from bioinvasion import pipeline
+    from bioinvasion.config import load_config
+    from bioinvasion.core.sensitivity import sweep as run_sweep
 
-    gpkg = os.path.join(out_dir, "run.gpkg")
-    with rio.open(COST) as cost:
-        thinned, cell = thin(PRESENCE, "msculpturalis_20241203", cost, gpkg, "points", "points_thinned",
-                             YEAR, START_YEAR, END_YEAR, LOCATION)
-        paths(gpkg, "paths", thinned, cost, YEAR, START_YEAR, END_YEAR)
-    group_paths_save(gpkg, "paths", "paths_grouped", THRESHOLD, threshold_is_absolute=True)
-    group_points_save(gpkg, "points", "paths_grouped", "points_grouped", cell)
-    rates_csv, cumdist_csv = os.path.join(out_dir, "rates.csv"), os.path.join(out_dir, "cumdist.csv")
-    expansion_rate_save(gpkg, "points_grouped", rates_csv, cumdist_csv, YEAR, LOCATION)
-    result = {lyr: gpd.read_file(gpkg, layer=lyr)
-              for lyr in ["points", "points_thinned", "paths", "paths_grouped", "points_grouped"]}
-    result["expansion_rates"] = pd.read_csv(rates_csv)
-    result["cumulative_distances"] = pd.read_csv(cumdist_csv)
+    # The reference observations use other column names than the standard schema, so they are converted first
+    gpd.read_file(PRESENCE).rename(columns={**STANDARD, "id": "source_id"}).to_file(
+        os.path.join(out_dir, "presence_standard.gpkg"), layer="presence")
+    with open(os.path.join(out_dir, "project.toml"), "w") as f:
+        f.write(f'[data]\nsource = "gpkg"\nfile = "presence_standard.gpkg"\nstart_year = {START_YEAR}\n'
+                f'end_year = {END_YEAR}\n[cost]\nfile = "{COST}"\nlabel = "ref"\n'
+                f'[delineation]\nthreshold = {THRESHOLD}\n')
+    cfg = load_config(out_dir)
+    folder = pipeline.delineate(cfg, log=lambda msg: None)
+    paths_dir = os.path.dirname(folder)
+    gpkg = os.path.join(paths_dir, "paths.gpkg")
+    result = {lyr: gpd.read_file(gpkg, layer=lyr) for lyr in ["points", "points_thinned", "paths"]}
+    result.update({lyr: gpd.read_file(os.path.join(folder, "populations.gpkg"), layer=lyr)
+                   for lyr in ["paths_grouped", "points_grouped"]})
+    result["expansion_rates"] = pd.read_csv(os.path.join(folder, "expansion_rates.csv"))
+    result["cumulative_distances"] = pd.read_csv(os.path.join(folder, "cumulative_distances.csv"))
     if sweep:
-        sweep_csv = os.path.join(out_dir, "sweep.csv")
-        sensitivity_analysis(gpkg, "points", "paths", sweep_csv, cell, YEAR, LOCATION, SWEEP_STEPS, True, ROBUST_STEPS)
-        result["sweep"] = pd.read_csv(sweep_csv)
+        run = pipeline.load_paths(paths_dir)
+        result["sweep"] = run_sweep(run["paths"], run["points"], run["cell_size"], SWEEP_STEPS, ROBUST_STEPS)
     return result
 # ---------------------------------------------------------------------------------------------------------------------
 
 
 def ref(layer):
-    return gpd.read_file(REF_GPKG, layer=f"{REF_RUN}_{layer}")
+    return gpd.read_file(REF_GPKG, layer=f"{REF_RUN}_{layer}").rename(columns=STANDARD)
 
 
 def ref_csv(name):
@@ -77,7 +78,7 @@ def ref_csv(name):
 
 def keys(gdf):
     """Identifies points by rounded coordinates (mm) and year."""
-    return list(zip(np.round(gdf.geometry.x, 3), np.round(gdf.geometry.y, 3), gdf[YEAR]))
+    return list(zip(np.round(gdf.geometry.x, 3), np.round(gdf.geometry.y, 3), gdf["year"]))
 
 
 def on_nodata(gdf):
@@ -121,8 +122,8 @@ def test_points_grouped_identical(new):
 
 
 def test_cumulative_distances_identical(new):
-    pd.testing.assert_frame_equal(new["cumulative_distances"], ref_csv("cumulative_distances"), check_dtype=False,
-                                  rtol=1e-9)
+    cur = new["cumulative_distances"].astype({"group_id": int})
+    pd.testing.assert_frame_equal(cur, ref_csv("cumulative_distances"), check_dtype=False, rtol=1e-9)
 
 
 def test_expansion_rates(new):
@@ -132,7 +133,7 @@ def test_expansion_rates(new):
     computed here from the published cumulative distances, which do not depend on the row order.
     REFERENCE.md, difference 1: France 2008 has one observation less (on a NoData cell).
     """
-    old, cur = ref_csv("expansion_rates"), new["expansion_rates"]
+    old, cur = ref_csv("expansion_rates"), new["expansion_rates"].astype({"group_id": int})
     cols = ["group_id", "first_observed_in", "min_year", "max_year", "median_points_per_year"]
     pd.testing.assert_frame_equal(cur[cols], old[cols], check_dtype=False)
     old_points = ref("points_grouped")
