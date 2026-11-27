@@ -1,6 +1,8 @@
 # Web app image, e.g. for Hugging Face Spaces (see docs/deployment.md).
-# The wheels of rasterio, pyogrio and shapely include GDAL/GEOS/PROJ, so no system packages are needed.
+# The wheels of rasterio, pyogrio and shapely include GDAL/GEOS/PROJ; only libexpat (needed by rasterio's GDAL)
+# is missing in the slim base image.
 FROM python:3.13-slim
+RUN apt-get update && apt-get install -y --no-install-recommends libexpat1 && rm -rf /var/lib/apt/lists/*
 
 # Hugging Face Spaces run containers as user 1000
 RUN useradd -m -u 1000 user

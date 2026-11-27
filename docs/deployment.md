@@ -2,6 +2,17 @@
 
 The web app runs from the `Dockerfile` in the repository root. Locally you do not need Docker: `python -m webapp`.
 
+## Testing the image locally
+
+```bash
+docker build -t bioinvasion .
+docker run --rm -p 127.0.0.1:7860:7860 bioinvasion        # then open http://127.0.0.1:7860
+# all tests inside the image (reference data mounted read-only):
+docker run --rm -v "$PWD":/src:ro -v ~/Git/manuscript/data:/ref:ro -e BIOINVASION_REFERENCE_DIR=/ref \
+    -e PYTHONDONTWRITEBYTECODE=1 -w /src bioinvasion \
+    sh -c "pip install -q --user pytest && python -m pytest -p no:cacheprovider -m 'slow or not slow' tests"
+```
+
 ## Hugging Face Spaces (free CPU tier: 2 vCPU, 16 GB RAM)
 
 1. Create a Space at https://huggingface.co/new-space: SDK **Docker**, template **Blank**, hardware **CPU basic (free)**,

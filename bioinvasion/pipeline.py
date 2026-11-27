@@ -80,7 +80,7 @@ def _json_default(o):
 
 def write_manifest(path, stage, settings, inputs, results=None):
     manifest = {"stage": stage, "settings": settings, "inputs": inputs, "results": results or {},
-                "code_version": code_version(), "created": dt.now().isoformat(timespec="seconds")}
+                "code_version": code_version(), "created": dt.now().astimezone().isoformat(timespec="seconds")}
     with open(path, "w", encoding="utf-8") as f:
         json.dump(manifest, f, indent=2, ensure_ascii=False, default=_json_default)
     return manifest
