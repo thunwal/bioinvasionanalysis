@@ -125,7 +125,6 @@ def test_cumulative_distances_identical(new):
                                   rtol=1e-9)
 
 
-@pytest.mark.xfail(strict=True, reason="old per-observation method; fixed in the next commit")
 def test_expansion_rates(new):
     """
     REFERENCE.md, difference 2: expansion rates follow the paper's methods text, i.e. one value per year (the yearly
@@ -142,11 +141,11 @@ def test_expansion_rates(new):
     assert (cur["point_count"].values == expected_count).all()
     assert (old["point_count"].values - expected_count).sum() == 1  # the France 2008 observation on a NoData cell
 
-    expected = []
-    for _, d in ref_csv("cumulative_distances").groupby("group_id"):
+    expected = {}
+    for gid, d in ref_csv("cumulative_distances").groupby("group_id"):
         model = sm.OLS(d["max_distance"], sm.add_constant(d["year"])).fit()
-        expected.append((model.params.iloc[1], model.rsquared))
-    expected = np.array(expected)
+        expected[gid] = (model.params.iloc[1], model.rsquared)
+    expected = np.array([expected[gid] for gid in cur["group_id"]])
     np.testing.assert_allclose(cur["expansion_rate"], expected[:, 0], rtol=1e-9)
     np.testing.assert_allclose(cur["r2"], expected[:, 1], rtol=1e-9)
 

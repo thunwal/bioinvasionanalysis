@@ -7,7 +7,8 @@ from shapely.geometry import MultiPoint
 
 def expansion_rate(in_points, year_field, location_field):
     """
-    Calculates the expansion rate for each population by regressing cumulative distance to the first point against time.
+    Calculates the expansion rate for each population by regressing the cumulative maximum distance to the first
+    observation against time, with one value per year (distance regression, see the methods of Rohrbach et al. 2025).
     """
     gdf_points = in_points.dropna(subset=[year_field, 'geometry', 'group_id']).astype({year_field: 'int32', 'group_id': 'string'})
     exp_rates = []
@@ -29,16 +30,16 @@ def expansion_rate(in_points, year_field, location_field):
         # Calculate distances to the reference point
         population['distance_to_first'] = population.geometry.distance(reference_point)
 
-        # Compute the cumulative maximum distance per year
-        population = population.sort_values(by=year_field)
-        population['cumulative_max_distance'] = population['distance_to_first'].cummax()
+        # Cumulative maximum distance per year: the farthest distance reached up to and including that year.
+        # One value per year with observations, independent of the order of the observations within a year.
+        yearly = population.groupby(year_field)['distance_to_first'].max().sort_index().cummax()
 
         # Append result to list
-        for year, subset in population.groupby(year_field):
+        for year, max_distance in yearly.items():
             cum_distances.append({
                 'group_id': group_id,
                 'year': year,
-                'max_distance': subset['cumulative_max_distance'].max()
+                'max_distance': max_distance
             })
 
         # Calculate stats
@@ -50,9 +51,9 @@ def expansion_rate(in_points, year_field, location_field):
         median_annual_count = annual_counts.median()
         first_observed_in = " / ".join(first_year_points[location_field].unique())
 
-        # Regression
-        x = sm.add_constant(population[year_field])
-        y = population['cumulative_max_distance']
+        # Regression of the yearly cumulative maximum distance against year
+        x = sm.add_constant(pd.Series(yearly.index, name=year_field, dtype='float64'))
+        y = yearly.to_numpy()
         model = sm.OLS(y, x).fit()
 
         # Append result to list
