@@ -11,7 +11,7 @@ layout = html.Div(id="exp-page", children=[
     html.H2("4 Export"),
     html.Div(id="exp-current"),
     dcc.Markdown("The zip file contains: populations and paths (GeoPackage), expansion rates and cumulative distances "
-                 "(CSV), the sensitivity sweeps (CSV), the figures and tables of the paper, one map per year end "
+                 "(CSV), the sensitivity tests (CSV), the figures and tables of the paper, one map per year end "
                  "(PNG, without title or source credits), `settings.txt` with all settings and numbers in words "
                  "(for the methods section), the import report, the manifests, and `project.toml`, with which the "
                  "analysis can be repeated on your computer (`python cli.py export <folder>`)."),

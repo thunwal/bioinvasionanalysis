@@ -20,11 +20,11 @@ JOB_TTL_HOURS = 24
 MAX_UPLOAD_MB = 50
 MAX_CELLS = 2_000_000          # raster cells of an uploaded cost surface
 MAX_OBSERVATIONS = 20_000      # observations after import (also the iNaturalist download limit)
-MAX_RUNNING = 2                # concurrent path/sweep computations on the server
+MAX_RUNNING = 2                # concurrent path and sensitivity test computations on the server
 
 DEMO_SURFACES = {
-    "gtopo30exp5km": ("Europe, 5 km cells, based on terrain only (GTOPO30 elevation; demo)",
-                      os.path.join(REPO, "data", "cost_surface_gtopo30_esri102031_5km_exp_rescaled.tif")),
+    "terrain5km": ("Europe, 5 km cells, based on terrain only (GTOPO30 elevation, costs 1 to 10; demo)",
+                   os.path.join(REPO, "data", "cost_surface_gtopo30_esri102031_5km_exp_base1_k9.tif")),
 }
 
 

@@ -1,4 +1,4 @@
-"""Page 2: import the observations (CSV, GeoPackage or iNaturalist), then compute paths and the sensitivity sweep."""
+"""Page 2: import the observations (CSV, GeoPackage or iNaturalist), then compute paths and the sensitivity test."""
 import os
 
 import dash
@@ -56,9 +56,9 @@ layout = html.Div(id="obs-page", children=[
     html.H3("Compute"),
     dcc.Markdown("Removes observations outside the cost surface or on NoData cells, keeps the earliest observation "
                  "per cell, connects each observation to the nearest earlier one by a least-cost path, and runs the "
-                 "sensitivity sweep (overview over all thresholds, then a high-resolution sweep over a suggested "
+                 "sensitivity test (overview over all thresholds, then high resolution over a suggested "
                  "range). This can take several minutes."),
-    html.Button("Compute paths and sweep", id="obs-compute"),
+    html.Button("Compute paths and sensitivity test", id="obs-compute"),
     html.Div(id="obs-compute-progress"),
     html.Div(id="obs-compute-result"),
 ])
@@ -170,16 +170,16 @@ def compute(set_progress, _, job):
             set_progress("Least-cost paths: starting...")
             pipeline.compute_paths(cfg, log=log, progress=lambda i, n: set_progress(
                 html.Progress(value=str(i), max=str(n), title=f"Least-cost paths: year {i} of {n}")))
-            def sweep_progress(i, n):
+            def report_progress(i, n):
                 if i % 5 == 0 or i == n:
-                    set_progress([html.Span(f"Sensitivity sweep: {i} of {n} thresholds "),
+                    set_progress([html.Span(f"Sensitivity test: {i} of {n} thresholds "),
                                   html.Progress(value=str(i), max=str(n))])
 
-            coarse, fine, chosen = pipeline.sweep(cfg, log=log, progress=sweep_progress)
+            coarse, fine, chosen = pipeline.sensitivity_test(cfg, log=log, progress=report_progress)
     except jobs.Busy as e:
         return ui.error(e)
     except Exception as e:
         return ui.flat(ui.error(f"Computation stopped: {e}"), ui.log_box(log))
     set_progress(None)
-    return ui.flat(ui.messages([("ok", "Least-cost paths and sensitivity sweep are ready."), ("info", chosen["rule"])]),
+    return ui.flat(ui.messages([("ok", "Least-cost paths and sensitivity test are ready."), ("info", chosen["rule"])]),
                    ui.log_box(log), dcc.Link("Next: 3 Thresholds →", href="/thresholds", className="next"))

@@ -31,12 +31,12 @@ class CostConfig:
 
 
 @dataclass
-class SweepConfig:
+class SensitivityConfig:
     robust_from: float = 5                  # robust population definitions tested (paper: 5 to 15 by 1)
     robust_to: float = 15
     robust_step: float = 1
-    coarse_steps: int = 200                 # overview sweep: 0 to the highest accumulated cost in about this many steps
-    fine_steps: int = 1000                  # high-resolution sweep: about this many steps in the suggested range
+    coarse_steps: int = 200                 # overview: 0 to the highest accumulated cost in about this many steps
+    fine_steps: int = 1000                  # high resolution: about this many steps in the suggested range
     stable_tolerance: float = 0.25          # stable range: average rate stays within +/- this share
     max_quantile: float = 0.995             # thresholds above this quantile of path costs are ignored as extremes
     n_ranges: int = 3                       # number of widest stable ranges the suggested range covers
@@ -71,7 +71,7 @@ class Config:
     project_dir: str
     data: DataConfig
     cost: CostConfig
-    sweep: SweepConfig
+    sensitivity: SensitivityConfig
     delineation: DelineationConfig
     report: ReportConfig
     year_maps: YearMapsConfig
@@ -85,7 +85,7 @@ class Config:
         return self.cost.label or os.path.splitext(os.path.basename(self.cost.file))[0]
 
     def robust_definitions(self):
-        s = self.sweep
+        s = self.sensitivity
         n = int(round((s.robust_to - s.robust_from) / s.robust_step)) + 1
         return [round(s.robust_from + i * s.robust_step, 10) for i in range(n)]
 
@@ -95,7 +95,7 @@ class Config:
         return d
 
 
-SECTIONS = {"data": DataConfig, "cost": CostConfig, "sweep": SweepConfig, "delineation": DelineationConfig,
+SECTIONS = {"data": DataConfig, "cost": CostConfig, "sensitivity": SensitivityConfig, "delineation": DelineationConfig,
             "report": ReportConfig, "year_maps": YearMapsConfig}
 
 
@@ -134,10 +134,10 @@ def _check(cfg, path):
         raise ValueError(f"[data] taxon must be set for source \"inaturalist\" in '{path}'.")
     if not cfg.cost.file:
         raise ValueError(f"[cost] file must be set in '{path}'.")
-    s = cfg.sweep
+    s = cfg.sensitivity
     fine = [s.fine_from, s.fine_to, s.fine_step]
     if any(v is not None for v in fine) and not all(v is not None for v in fine):
-        raise ValueError(f"[sweep] fine_from, fine_to and fine_step must be set together (or none) in '{path}'.")
+        raise ValueError(f"[sensitivity] fine_from, fine_to and fine_step must be set together (or none) in '{path}'.")
 
 
 PROJECT_TEMPLATE = '''# Project settings for bioinvasionanalysis. Paths are relative to this folder.
@@ -162,7 +162,7 @@ file = "observations.csv"
 file = "cost_surface.tif"   # GeoTIFF in a projected CRS with square cells; NoData cells cannot be crossed
 # label = "sdm10km"         # short name for output folders; not set = file name
 
-[sweep]
+[sensitivity]
 robust_from = 5             # robust population definitions tested, as in the paper
 robust_to = 15
 robust_step = 1
@@ -177,7 +177,7 @@ margin = 0.1                # ... widened by 10 % of its width on each side
 # fine_step = 0.01
 
 [delineation]
-# threshold = 4.4           # accumulated cost threshold; choose it after looking at the sweep
+# threshold = 4.4           # accumulated cost threshold; choose it after looking at the sensitivity test
 robust_definition = 10      # robust population: more than 10 median observations per year
 
 [report]

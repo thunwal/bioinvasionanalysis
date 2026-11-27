@@ -23,7 +23,7 @@
 
 `webapp/app.py` creates the Dash app; each page in `webapp/pages/` contains its layout and its callbacks, and calls
 only `pipeline` (and `sources` for file checks). A session's state is not kept in memory but in its job folder
-(`webapp/jobs.py`), which is a normal project folder. Long computations (paths, sweeps, iNaturalist download, export)
+(`webapp/jobs.py`), which is a normal project folder. Long computations (paths, sensitivity tests, iNaturalist download, export)
 run as Dash *background callbacks* in separate processes, with a progress display; they are limited to two at a time.
 Callbacks are plain functions: to debug one, call the pipeline function it uses in a notebook with the job folder
 (`webapp_jobs/<id>`) as project folder. `tests/e2e_webapp.py` clicks through the whole app in a headless browser.
@@ -38,7 +38,7 @@ Callbacks are plain functions: to debug one, call the pipeline function it uses 
 | add a setting | `bioinvasion/config.py` (dataclass + template), then use it in `pipeline.py` |
 | change output file names or folders | `bioinvasion/pipeline.py` |
 | change a figure or table | `bioinvasion/report/figures.py` |
-| change the suggested sweep range or the checks | `bioinvasion/report/insights.py` |
+| change the suggested sensitivity test range or the checks | `bioinvasion/report/insights.py` |
 | add a command line option | `cli.py` |
 | change a page of the web app | `webapp/pages/<page>.py` (layout at the top, callbacks below) |
 | change server limits (cells, observations, upload size) | `webapp/jobs.py` |
@@ -57,8 +57,8 @@ from bioinvasion.pipeline import load_paths
 from bioinvasion.core.populations import delineate
 from bioinvasion.core.expansionrate import expansion_rate
 
-run = load_paths("examples/isodontia/paths__gtopo30exp5km__1993-2024")
-paths_grouped, points_grouped, share = delineate(run["paths"], run["points"], 0.19, run["cell_size"])
+run = load_paths("notebooks/demo_project/paths__terrain5km__2008-2026")   # after running the demo notebook
+paths_grouped, points_grouped, share = delineate(run["paths"], run["points"], 56.6, run["cell_size"])
 cumulative_distances, rates = expansion_rate(points_grouped)
 ```
 
@@ -69,7 +69,7 @@ cumulative_distances, rates = expansion_rate(points_grouped)
   "version": "0.2.0",
   "configurations": [
     {"name": "cli: report demo", "type": "debugpy", "request": "launch", "program": "${workspaceFolder}/cli.py",
-     "args": ["report", "examples/isodontia", "--threshold", "0.19"], "console": "integratedTerminal"},
+     "args": ["report", "notebooks/demo_project", "--threshold", "56.6"], "console": "integratedTerminal"},
     {"name": "tests", "type": "debugpy", "request": "launch", "module": "pytest", "args": ["-x"],
      "console": "integratedTerminal"}
   ]
@@ -83,5 +83,5 @@ paths). The manifest also shows which settings and inputs the existing results w
 
 `tests/test_regression.py` runs the published analysis through `pipeline` and compares every output with the paper.
 `tests/REFERENCE.md` lists each intended difference with its reason. Before merging any change: `python -m pytest`
-(and `python -m pytest -m slow` if the sweep is affected). If a result changes on purpose, change the test in the same
+(and `python -m pytest -m slow` if the sensitivity test is affected). If a result changes on purpose, change the test in the same
 commit and add a section to `REFERENCE.md`.

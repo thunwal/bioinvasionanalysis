@@ -6,7 +6,7 @@ from bioinvasion.core.populations import delineate
 from bioinvasion.core.robust import is_robust
 
 
-def sweep(paths, points, cell_size, thresholds, robust_definitions, progress=None):
+def sensitivity_test(paths, points, cell_size, thresholds, robust_definitions, progress=None):
     """
     Sensitivity analysis: delineates the populations for every accumulated cost threshold and reports, for every
     robust population definition, the number of (robust) populations and the min/max/average expansion rate of the

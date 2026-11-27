@@ -1,7 +1,7 @@
 """
 Manual end-to-end test of the web app in a headless browser (not run by pytest, as it needs Playwright).
 
-Setup once (in any Python environment):  pip install playwright && python -m playwright install chromium
+Setup once (in the project environment):  pip install playwright && python -m playwright install chromium
 Run:  python -m webapp  (in a second terminal, with DASH_DEBUG=0)
       python tests/e2e_webapp.py . /tmp/e2e        # screenshots and the downloaded zip go to /tmp/e2e
 Another server: APP_URL=http://127.0.0.1:7860 python tests/e2e_webapp.py . /tmp/e2e
@@ -14,6 +14,10 @@ from playwright.sync_api import sync_playwright
 
 repo, out = sys.argv[1], sys.argv[2]
 os.makedirs(out, exist_ok=True)
+sys.path.insert(0, repo)
+from tests.synthetic import REPO_DEMO_SURFACE, write_observations  # noqa: E402
+
+observations = write_observations(os.path.join(repo, REPO_DEMO_SURFACE), os.path.join(out, "observations.csv"))
 URL = os.environ.get("APP_URL", "http://127.0.0.1:8050")
 bad_csv = os.path.join(out, "bad.csv")
 with open(bad_csv, "w") as f:
@@ -40,8 +44,7 @@ with sync_playwright() as p:
     page.set_input_files("#obs-upload input[type=file]", bad_csv)
     page.wait_for_selector("#obs-result .error")
     step("bad CSV: " + page.inner_text("#obs-result"))
-    page.set_input_files("#obs-upload input[type=file]",
-                         os.path.join(repo, "examples/isodontia/isodontia_mexicana_gbif_20241227.csv"))
+    page.set_input_files("#obs-upload input[type=file]", observations)
     page.wait_for_selector("#obs-result >> text=Observations imported", timeout=60000)
     step("import: " + page.inner_text("#obs-result").split("\n")[0][:300])
     page.screenshot(path=f"{out}/2_observations.png", full_page=True)

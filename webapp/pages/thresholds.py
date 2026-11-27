@@ -1,6 +1,6 @@
 """
-Page 3: the scientist chooses the accumulated cost threshold. Shows the overview sweep with the suggested
-high-resolution range (and the rule behind it), the high-resolution sweep with stable ranges, and the populations
+Page 3: the scientist chooses the accumulated cost threshold. Shows the sensitivity test overview with the suggested
+high-resolution range (and the rule behind it), the high-resolution run with stable ranges, and the populations
 for the chosen threshold with plain-language checks.
 """
 import os
@@ -31,12 +31,12 @@ layout = html.Div(id="thr-page", children=[
         html.Label("From"), dcc.Input(id="thr-from", type="number"),
         html.Label("to"), dcc.Input(id="thr-to", type="number"),
         html.Label("step"), dcc.Input(id="thr-step", type="number"),
-        html.Button("Run high-resolution sweep", id="thr-rerun")]),
+        html.Button("Run high-resolution sensitivity test", id="thr-rerun")]),
     html.Div(id="thr-rerun-progress"),
     dcc.Graph(id="thr-fine"),
     html.Div(id="thr-ranges"),
     html.H3("Populations"),
-    dcc.Markdown("Click on a sweep curve to take over its threshold, or type it in."),
+    dcc.Markdown("Click on a curve to take over its threshold, or type it in."),
     html.Div(className="row", children=[
         html.Label("Threshold"), dcc.Input(id="thr-threshold", type="number", debounce=True),
         html.Label("Robust population: median observations per year above"),
@@ -50,21 +50,22 @@ layout = html.Div(id="thr-page", children=[
 def load(job):
     cfg = jobs.config(job)
     folder = pipeline.current_paths_folder(cfg)
-    coarse_csv = os.path.join(folder, "sweep_coarse.csv")
+    coarse_csv = os.path.join(folder, "sensitivity_coarse.csv")
     if not os.path.exists(coarse_csv):
-        raise FileNotFoundError("No sensitivity sweep yet: import observations and click 'Compute' on page 2.")
-    fine, chosen = pipeline.latest_fine_sweep(folder)
+        raise FileNotFoundError("No sensitivity test yet: import observations and click 'Compute' on page 2.")
+    fine, chosen = pipeline.latest_fine_sensitivity(folder)
     return cfg, folder, pd.read_csv(coarse_csv), fine, chosen
 
 
 def range_list(fine, definition, cfg):
     d = insights.nearest_definition(fine, definition)
-    ranges = insights.stable_ranges(fine, d, cfg.sweep.stable_tolerance, cfg.sweep.max_quantile, cfg.sweep.n_ranges)
-    text = (f"Stable ranges in the high-resolution sweep (robust definition {d:g}; average rate within "
-            f"±{cfg.sweep.stable_tolerance:.0%}; widest first):  \n" +
+    s = cfg.sensitivity
+    ranges = insights.stable_ranges(fine, d, s.stable_tolerance, s.max_quantile, s.n_ranges)
+    text = (f"Stable ranges in the high-resolution sensitivity test (robust definition {d:g}; average rate within "
+            f"±{cfg.sensitivity.stable_tolerance:.0%}; widest first):  \n" +
             "  \n".join(f"- {insights.fmt(r['from'])}–{insights.fmt(r['to'])} (Q{r['q_from']:.3f}–Q{r['q_to']:.3f}): "
                         f"{r['rate_min']:.1f}–{r['rate_max']:.1f} km/year" for r in ranges)) if ranges else \
-        "No stable range found in the high-resolution sweep."
+        "No stable range found in the high-resolution sensitivity test."
     return ranges, ui.messages([("tip", text)])
 
 
@@ -73,7 +74,7 @@ def range_list(fine, definition, cfg):
           Output("thr-to", "value"), Output("thr-step", "value"), Output("thr-threshold", "value"),
           Output("thr-robust", "value"),
           Input("thr-page", "id"), Input("thr-refresh", "data"), State("job", "data"))
-def show_sweeps(_, __, job):
+def show_tests(_, __, job):
     try:
         cfg, folder, coarse, fine, chosen = load(job)
     except Exception as e:
@@ -84,8 +85,8 @@ def show_sweeps(_, __, job):
     if threshold is None and ranges:
         threshold = ranges[0]["from"]
     return (None, ui.messages([("info", chosen["rule"])]),
-            figures.sweep_figure(coarse, threshold, shade=(chosen["from"], chosen["to"])),
-            figures.sweep_figure(fine, threshold, ranges=ranges), ranges_box,
+            figures.sensitivity_figure(coarse, threshold, shade=(chosen["from"], chosen["to"])),
+            figures.sensitivity_figure(fine, threshold, ranges=ranges), ranges_box,
             chosen["from"], chosen["to"], chosen["step"], threshold, robust)
 
 
@@ -102,7 +103,7 @@ def rerun(set_progress, n, start, end, step, job):
         return dash.no_update
     try:
         with jobs.running(job):
-            pipeline.sweep(jobs.config(job), start, end, step, log=ui.Log(), progress=lambda i, total: set_progress(
+            pipeline.sensitivity_test(jobs.config(job), start, end, step, log=ui.Log(), progress=lambda i, total: set_progress(
                 [html.Span(f"{i} of {total} thresholds "), html.Progress(value=str(i), max=str(total))]))
     except Exception as e:
         set_progress(ui.error(e))
@@ -133,7 +134,7 @@ def apply(_, threshold, robust, job):
     except Exception as e:
         return ui.error(e), dash.no_update, dash.no_update
     jobs.write_config(job, {"delineation": {"threshold": float(threshold), "robust_definition": float(robust)}})
-    checks = insights.delineation_checks(data) + insights.sweep_checks(fine, float(threshold), float(robust))
+    checks = insights.delineation_checks(data) + insights.sensitivity_checks(fine, float(threshold), float(robust))
     table = population_table(data["rates"])
     ranges, _ = range_list(fine, float(robust), cfg)
     return (ui.flat(html.P(f"Threshold {threshold:g} (Q{data['threshold_quantile']:.3f}): "
@@ -144,5 +145,5 @@ def apply(_, threshold, robust, job):
                                   sort_action="native", page_size=15, style_table={"overflowX": "auto"},
                                   style_cell={"fontSize": 13, "padding": "3px 8px"}),
              dcc.Link("Next: 4 Export →", href="/export", className="next")),
-            figures.sweep_figure(fine, float(threshold), ranges=ranges),
-            figures.sweep_figure(coarse, float(threshold), shade=(chosen["from"], chosen["to"])))
+            figures.sensitivity_figure(fine, float(threshold), ranges=ranges),
+            figures.sensitivity_figure(coarse, float(threshold), shade=(chosen["from"], chosen["to"])))

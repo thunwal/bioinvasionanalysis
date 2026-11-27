@@ -42,15 +42,15 @@ def observations_per_year(points):
     return fig
 
 
-def sweep_figure(sweep, threshold=None, shade=None, ranges=(), title=""):
+def sensitivity_figure(sens, threshold=None, shade=None, ranges=(), title=""):
     """
     Average expansion rate of robust populations against the threshold, one line per robust definition.
     'shade' = (from, to) of the suggested high-resolution range; 'ranges' = stable ranges (dicts with from/to).
     """
     fig = go.Figure()
-    definitions = sorted(sweep["definition_robust"].unique())
+    definitions = sorted(sens["definition_robust"].unique())
     for i, d in enumerate(definitions):
-        s = sweep[sweep["definition_robust"] == d].sort_values("threshold")
+        s = sens[sens["definition_robust"] == d].sort_values("threshold")
         colour = f"hsl({int(250 * i / max(len(definitions) - 1, 1))},70%,45%)"
         fig.add_trace(go.Scatter(x=s["threshold"], y=s["avg_rate"] / 1000, mode="lines", name=f"> {d:g}",
                                  line=dict(width=1.2, color=colour, shape="hv"),

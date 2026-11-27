@@ -5,7 +5,7 @@ are in bioinvasion/core and work on GeoDataFrames in memory.
     stage        function            output (in the project folder)
     1 import     import_presence()   presence/presence.gpkg, presence/import_report.txt
     2 paths      compute_paths()     paths__<cost>__<years>/paths.gpkg
-    3 sweep      sweep()             paths__.../sweep_coarse.csv, paths__.../sweep__<from>-<to>x<step>.csv
+    3 sensitivity sensitivity_test() paths__.../sensitivity_coarse.csv, paths__.../sensitivity__<from>-<to>x<step>.csv
     4 delineate  delineate()         paths__.../delin__t<threshold>__r<robust>/populations.gpkg + CSVs
     5 report     report()            paths__.../delin__.../report/
 
@@ -29,7 +29,7 @@ import rasterio as rio
 from bioinvasion.core.expansionrate import expansion_rate
 from bioinvasion.core.leastcostpaths import least_cost_paths
 from bioinvasion.core.populations import delineate as delineate_core
-from bioinvasion.core.sensitivity import sweep as sweep_core
+from bioinvasion.core.sensitivity import sensitivity_test as sensitivity_core
 from bioinvasion.core.thinning import filter_points, thin
 from bioinvasion.report import insights
 from bioinvasion.report.figures import Basemap, build_run_data, write_outputs
@@ -226,39 +226,39 @@ def load_paths(folder):
             "manifest": manifest}
 
 
-# ============================================ 3 SWEEP =================================================================
+# ============================================ 3 SENSITIVITY TEST ======================================================
 
-def _run_sweep(folder, name, thresholds, robust_definitions, extra, log, progress):
+def _run_sensitivity(folder, name, thresholds, robust_definitions, extra, log, progress):
     out, manifest = os.path.join(folder, f"{name}.csv"), os.path.join(folder, f"{name}.manifest.json")
     settings = {"thresholds_from": float(thresholds[0]), "thresholds_to": float(thresholds[-1]),
                 "steps": len(thresholds), "robust_definitions": list(robust_definitions), **extra}
     inputs = {"paths": file_hash(os.path.join(folder, "paths.gpkg"))}
     if up_to_date(manifest, settings, inputs, [out]):
-        log(f"Sweep: up to date ('{out}').")
+        log(f"Sensitivity test: up to date ('{out}').")
         return pd.read_csv(out)
     run = load_paths(folder)
-    log(f"Sweep: {len(thresholds)} thresholds from {thresholds[0]:g} to {thresholds[-1]:g}, robust definitions "
+    log(f"Sensitivity test: {len(thresholds)} thresholds from {thresholds[0]:g} to {thresholds[-1]:g}, robust definitions "
         f"{robust_definitions[0]:g} to {robust_definitions[-1]:g}...")
-    result = sweep_core(run["paths"], run["points"], run["cell_size"], thresholds, robust_definitions, progress)
+    result = sensitivity_core(run["paths"], run["points"], run["cell_size"], thresholds, robust_definitions, progress)
     result.to_csv(out, index=False)
-    write_manifest(manifest, "sweep", settings, inputs)
-    log(f"Sweep: saved to '{out}'.")
+    write_manifest(manifest, "sensitivity", settings, inputs)
+    log(f"Sensitivity test: saved to '{out}'.")
     return result
 
 
-def sweep(cfg, fine_from=None, fine_to=None, fine_step=None, log=log, progress=None):
+def sensitivity_test(cfg, fine_from=None, fine_to=None, fine_step=None, log=log, progress=None):
     """
-    Stage 3: overview sweep over the whole range of accumulated costs, then a high-resolution sweep over the
-    suggested range (or the range given here or in [sweep]). Returns (coarse, fine, range) with range a dict that
+    Stage 3: sensitivity test overview over the whole range of accumulated costs, then a high-resolution sensitivity test over the
+    suggested range (or the range given here or in [sensitivity]). Returns (coarse, fine, range) with range a dict that
     includes the rule by which it was chosen.
     """
     folder = compute_paths(cfg, log)
     costs = load_paths(folder)["paths"]["accumulated_cost"].to_numpy()
     definitions = cfg.robust_definitions()
-    thresholds, step = insights.coarse_thresholds(costs, cfg.sweep.coarse_steps)
-    coarse = _run_sweep(folder, "sweep_coarse", thresholds, definitions, {"step": step}, log, progress)
+    thresholds, step = insights.coarse_thresholds(costs, cfg.sensitivity.coarse_steps)
+    coarse = _run_sensitivity(folder, "sensitivity_coarse", thresholds, definitions, {"step": step}, log, progress)
 
-    s = cfg.sweep
+    s = cfg.sensitivity
     if fine_from is None and s.fine_from is not None:
         fine_from, fine_to, fine_step = s.fine_from, s.fine_to, s.fine_step
     if fine_from is not None:
@@ -266,27 +266,27 @@ def sweep(cfg, fine_from=None, fine_to=None, fine_step=None, log=log, progress=N
                   "rule": "Range set by the user."}
     else:
         chosen = insights.suggest_fine_range(coarse, costs, cfg.delineation.robust_definition, s)
-    log(f"Sweep: high-resolution range {chosen['from']:g} to {chosen['to']:g} by {chosen['step']:g}. "
+    log(f"Sensitivity test: high-resolution range {chosen['from']:g} to {chosen['to']:g} by {chosen['step']:g}. "
         f"{chosen['rule']}")
     n = int(round((chosen["to"] - chosen["from"]) / chosen["step"])) + 1
     fine_thresholds = (chosen["from"] + np.arange(n) * chosen["step"]).round(12)
-    name = f"sweep__{chosen['from']:g}-{chosen['to']:g}x{chosen['step']:g}"
-    fine = _run_sweep(folder, name, fine_thresholds, definitions, {"range": chosen}, log, progress)
+    name = f"sensitivity__{chosen['from']:g}-{chosen['to']:g}x{chosen['step']:g}"
+    fine = _run_sensitivity(folder, name, fine_thresholds, definitions, {"range": chosen}, log, progress)
     return coarse, fine, chosen
 
 
-def latest_fine_sweep(folder):
-    """The most recent high-resolution sweep of a paths folder: (DataFrame, range dict) or (None, None)."""
-    files = sorted(glob.glob(os.path.join(folder, "sweep__*.csv")), key=os.path.getmtime)
+def latest_fine_sensitivity(folder):
+    """The most recent high-resolution sensitivity test of a paths folder: (DataFrame, range dict) or (None, None)."""
+    files = sorted(glob.glob(os.path.join(folder, "sensitivity__*.csv")), key=os.path.getmtime)
     if not files:
         return None, None
     manifest = read_manifest(files[-1].replace(".csv", ".manifest.json"))
     return pd.read_csv(files[-1]), manifest["settings"]["range"]
 
 
-def load_sweeps(folder):
-    """All sweeps of a paths folder combined (high resolution where available), or None."""
-    files = sorted(glob.glob(os.path.join(folder, "sweep*.csv")))
+def load_sensitivity(folder):
+    """All sensitivity tests of a paths folder combined (high resolution where available), or None."""
+    files = sorted(glob.glob(os.path.join(folder, "sensitivity*.csv")))
     if not files:
         return None
     combined = pd.concat([pd.read_csv(f) for f in files], ignore_index=True)
@@ -300,7 +300,7 @@ def load_sweeps(folder):
 def _threshold(cfg, threshold):
     threshold = cfg.delineation.threshold if threshold is None else threshold
     if threshold is None:
-        raise ValueError("No accumulated cost threshold set. Look at the sensitivity sweep (python cli.py sweep "
+        raise ValueError("No accumulated cost threshold set. Look at the sensitivity test (python cli.py sensitivity "
                          "<project>), then set [delineation] threshold in project.toml or use --threshold.")
     return float(threshold)
 
@@ -337,7 +337,7 @@ def delineate(cfg, threshold=None, robust_definition=None, log=log):
 
 
 def load_delineation(folder, robust_definition=None):
-    """Data structure of report.figures.build_run_data for a delineation folder (with all sweeps of its paths)."""
+    """Data structure of report.figures.build_run_data for a delineation folder (with all sensitivity tests of its paths)."""
     paths_dir = os.path.dirname(folder)
     manifest = read_manifest(os.path.join(folder, "manifest.json"))
     robust_definition = manifest["settings"]["robust_definition"] if robust_definition is None else robust_definition
@@ -349,7 +349,7 @@ def load_delineation(folder, robust_definition=None):
         points_grouped=gpd.read_file(gpkg, layer="points_grouped"),
         rates=pd.read_csv(os.path.join(folder, "expansion_rates.csv")),
         cumdist=pd.read_csv(os.path.join(folder, "cumulative_distances.csv")),
-        sensitivity=load_sweeps(paths_dir),
+        sensitivity=load_sensitivity(paths_dir),
         year_field="year",
         robust_definition=robust_definition)
     data["threshold"] = manifest["settings"]["threshold"]
@@ -370,7 +370,7 @@ def report(cfg, threshold=None, robust_definition=None, compare_threshold=None, 
         compare = load_delineation(delineate(cfg, compare_threshold, robust_definition, log))
         compare_label = f"accumulated cost threshold = {compare_threshold:g}"
     if data["sensitivity"] is None:
-        log("Report: no sweep found (python cli.py sweep <project>); the sensitivity panel is left out.")
+        log("Report: no sensitivity test found (python cli.py sensitivity <project>); the sensitivity panel is left out.")
     basemap = Basemap(cfg.path(cfg.cost.file), data["paths"].crs)
     r = cfg.report
     breakpoints = {name: tuple(years) for name, years in r.breakpoints.items()}
@@ -379,7 +379,7 @@ def report(cfg, threshold=None, robust_definition=None, compare_threshold=None, 
                          out_dir, compare, compare_label, r.split_at, breakpoints, r.formats, r.dpi)
     checks = insights.delineation_checks(data)
     if data["sensitivity"] is not None:
-        checks += insights.sweep_checks(data["sensitivity"], data["threshold"], data["robust_definition"])
+        checks += insights.sensitivity_checks(data["sensitivity"], data["threshold"], data["robust_definition"])
     log(f"Report: saved to '{out_dir}'.")
     return out_dir, text, checks
 
@@ -424,10 +424,10 @@ def settings_text(folder):
               f"paths kept: {d['paths_kept']}",
               f"  Robust population: median observations per year > {dln['settings']['robust_definition']:g}",
               f"  Populations: {d['populations']}; isolated observations: {d['isolated_observations']}"]
-    sweeps = sorted(glob.glob(os.path.join(paths_dir, "sweep*.manifest.json")))
-    if sweeps:
-        lines += ["", "Sensitivity sweep:"]
-        for path in sweeps:
+    tests = sorted(glob.glob(os.path.join(paths_dir, "sensitivity*.manifest.json")))
+    if tests:
+        lines += ["", "Sensitivity test:"]
+        for path in tests:
             s = read_manifest(path)["settings"]
             lines.append(f"  {os.path.basename(path).replace('.manifest.json', '.csv')}: {s['steps']} thresholds "
                          f"from {s['thresholds_from']:g} to {s['thresholds_to']:g}, robust definitions "
@@ -451,8 +451,8 @@ def export(cfg, threshold=None, robust_definition=None, log=log):
         files[name] = os.path.join(folder, name)
     for path in glob.glob(os.path.join(out_dir, "*")) + glob.glob(os.path.join(folder, "years", "*.png")):
         files[os.path.relpath(path, folder)] = path
-    for path in glob.glob(os.path.join(paths_dir, "sweep*.csv")):
-        files[f"sweep/{os.path.basename(path)}"] = path
+    for path in glob.glob(os.path.join(paths_dir, "sensitivity*.csv")):
+        files[f"sensitivity/{os.path.basename(path)}"] = path
     files["paths/manifest.json"] = os.path.join(paths_dir, "manifest.json")
     files["presence/import_report.txt"] = cfg.path(os.path.join("presence", "import_report.txt"))
     files["project.toml"] = cfg.path("project.toml")

@@ -12,17 +12,17 @@ Read from `BIOINVASION_REFERENCE_DIR`, by default `../manuscript/data`. They are
 | `sdm_esri-102031_inverted_scaled-0-1.tif` | input cost surface (10 km) |
 | `msculp20241203_2024_4-4.gpkg` | published run: points, thinned points, paths (886), grouped paths and points |
 | `msculp20241203_2024_4-4_expansion_rates.csv`, `..._cumulative_distances.csv` | published results |
-| `msculp20241203_2024_sensitivity_0-01_steps_sensitivity_test.csv` | published sensitivity sweep |
+| `msculp20241203_2024_sensitivity_0-01_steps_sensitivity_test.csv` | published sensitivity test |
 
 Settings of the published run, reconstructed from the paper and confirmed by the test:
 - years 2008–2024
 - year field `observation_year`, location field `country`
 - absolute threshold 4.4
-- sweep 0–67.91 in steps of 0.01, robust definitions 5–15
+- sensitivity test 0–67.91 in steps of 0.01, robust definitions 5–15
 
 ## How to use
 - Run `python -m pytest` before every merge, and `python -m pytest -m slow` before merging anything that touches the
-  sweep.
+  sensitivity test.
 - A change that is meant to change results gets **its own commit**, which updates the test and adds a section
   below explaining what changed, why, and how large the effect is.
 
@@ -66,18 +66,18 @@ year and are not affected.
 
 Decided by the author on 2026-11-27: follow the paper text.
 
-### 3. Robust populations: median *above* the definition (`>`), also in the sweep
+### 3. Robust populations: median *above* the definition (`>`), also in the sensitivity test
 **Paper:** "Populations with a median above 10 were classified as robust". The R code of the paper uses `> 10`.
 
-**Old code:** the delineation, report and animation used `>`, but the sensitivity sweep used `>=`.
+**Old code:** the delineation, report and animation used `>`, but the sensitivity test used `>=`.
 
 **New code:** one helper, `is_robust()`, is used everywhere and applies `>`.
 
-The published delineation results are unaffected, because they were classified with `> 10` in R. In the sweep, only
+The published delineation results are unaffected, because they were classified with `> 10` in R. In the sensitivity test, only
 the robust columns change (`num_groups_robust`, `min_rate`, `max_rate`, `avg_rate`), and only where a population's
-median equals an integer robust definition exactly. The published sweep (Fig. 3a) was computed with `>=` and the old
+median equals an integer robust definition exactly. The published sensitivity test (Fig. 3a) was computed with `>=` and the old
 expansion rate method (difference 2). The number of populations per threshold (`num_groups`) is unchanged; the slow
-test checks it against the published sweep.
+test checks it against the published sensitivity test.
 
-Measured on the published sweep (74712 rows = 6792 thresholds × 11 robust definitions): with `>` instead of `>=`,
+Measured on the published sensitivity test (74712 rows = 6792 thresholds × 11 robust definitions): with `>` instead of `>=`,
 the number of robust populations differs in 1171 rows (1.6 %), for robust definitions 5–14.

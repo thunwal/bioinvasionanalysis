@@ -24,7 +24,7 @@ docker run --rm -v "$PWD":/src:ro -v ~/Git/manuscript/data:/ref:ro -e BIOINVASIO
    git fetch space
    git checkout -b space space/main          # the Space's own history (its README.md with the header)
    git checkout refactor -- Dockerfile .dockerignore requirements.txt pyproject.toml bioinvasion webapp \
-       data/cost_surface_gtopo30_esri102031_5km_exp_rescaled.tif
+       data/cost_surface_gtopo30_esri102031_5km_exp_base1_k9.tif
    git commit -m "app from bioinvasionanalysis <commit>"
    git push space space:main                 # Hugging Face builds the image and starts the app
    ```

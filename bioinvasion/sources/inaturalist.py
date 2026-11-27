@@ -108,7 +108,7 @@ def fetch_inaturalist(taxon, bbox_4326, research_grade_only=True, include_obscur
 
     df = pd.DataFrame(rows, columns=["id", "observed_on", "location", "obscured", "positional_accuracy"])
     report = [f"Source: iNaturalist, taxon {taxon_name} (ID {taxon_id}), downloaded {dt.now():%Y-%m-%d %H:%M}",
-              f"Query: quality grade '{quality_grade}', bounding box {tuple(round(v, 4) for v in bbox_4326)} "
+              f"Query: quality grade '{quality_grade}', bounding box {', '.join(f'{v:.4f}' for v in bbox_4326)} "
               f"(lon/lat), years {start_year or 'all'}-{end_year or 'all'}",
               f"Observations downloaded: {len(df)}"]
     n = len(df)

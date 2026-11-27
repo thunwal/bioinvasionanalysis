@@ -3,17 +3,17 @@ Command line interface of bioinvasionanalysis. Each command works on a project f
 (create one with 'init'); results are written into that folder. Every command first brings the stages it depends on
 up to date and skips stages whose inputs and settings have not changed.
 
-    python cli.py init      <project>                      write a commented project.toml template
-    python cli.py import    <project>                      read the observations (CSV, GPKG or iNaturalist)
-    python cli.py paths     <project>                      thin the observations, calculate least-cost paths
-    python cli.py sweep     <project> [--from --to --step] sensitivity sweep: overview + high resolution
-    python cli.py delineate <project> [--threshold --robust]   populations and expansion rates
-    python cli.py report    <project> [--threshold --robust --compare-threshold]   figures and tables of the paper
-    python cli.py yearmaps  <project> [--threshold --robust]   one map per year end (PNG)
-    python cli.py export    <project> [--threshold --robust]   report, year maps and all results in one zip file
+    python cli.py init        <project>      write a commented project.toml template
+    python cli.py import      <project>      read the observations (CSV, GPKG or iNaturalist)
+    python cli.py paths       <project>      thin the observations, calculate least-cost paths
+    python cli.py sensitivity <project>      sensitivity test: overview + high resolution [--from --to --step]
+    python cli.py delineate   <project>      populations and expansion rates [--threshold --robust]
+    python cli.py report      <project>      figures and tables of the paper [--threshold --robust --compare-threshold]
+    python cli.py yearmaps    <project>      one map per year end (PNG) [--threshold --robust]
+    python cli.py export      <project>      report, year maps and all results in one zip file [--threshold --robust]
 
 Example:
-    python cli.py sweep ~/projects/msculpturalis
+    python cli.py sensitivity ~/projects/msculpturalis
     python cli.py report ~/projects/msculpturalis --threshold 4.4
 """
 import argparse
@@ -40,7 +40,7 @@ def cmd_init(a):
         sys.exit(f"'{path}' exists already; not overwritten.")
     with open(path, "w", encoding="utf-8") as f:
         f.write(PROJECT_TEMPLATE)
-    print(f"Created '{path}'. Edit [data] and [cost], then run: python cli.py sweep {a.project}")
+    print(f"Created '{path}'. Edit [data] and [cost], then run: python cli.py sensitivity {a.project}")
 
 
 def cmd_import(a):
@@ -51,17 +51,18 @@ def cmd_paths(a):
     pipeline.compute_paths(load_config(a.project), force=a.force)
 
 
-def cmd_sweep(a):
+def cmd_sensitivity(a):
     given = [a.from_, a.to, a.step]
     if any(v is not None for v in given) and not all(v is not None for v in given):
         sys.exit("--from, --to and --step must be given together.")
     cfg = load_config(a.project)
-    coarse, fine, chosen = pipeline.sweep(cfg, a.from_, a.to, a.step)
+    coarse, fine, chosen = pipeline.sensitivity_test(cfg, a.from_, a.to, a.step)
     from bioinvasion.report.insights import nearest_definition, stable_ranges
     d = nearest_definition(fine, cfg.delineation.robust_definition)
-    print(f"\nStable ranges in the high-resolution sweep (robust definition {d:g}, average rate within "
-          f"±{cfg.sweep.stable_tolerance:.0%}):")
-    for r in stable_ranges(fine, d, cfg.sweep.stable_tolerance, cfg.sweep.max_quantile, cfg.sweep.n_ranges):
+    print(f"\nStable ranges in the high-resolution sensitivity test (robust definition {d:g}, average rate within "
+          f"±{cfg.sensitivity.stable_tolerance:.0%}):")
+    s = cfg.sensitivity
+    for r in stable_ranges(fine, d, s.stable_tolerance, s.max_quantile, s.n_ranges):
         print(f"  {fmt(r['from'])}–{fmt(r['to'])} (Q{r['q_from']:.3f}–Q{r['q_to']:.3f}): "
               f"{r['rate_min']:.1f}–{r['rate_max']:.1f} km/year")
     print("\nNext: choose a threshold, e.g. at the beginning of a stable range, and run "
@@ -101,7 +102,7 @@ def main():
         "--force", action="store_true", help="import again even if nothing changed (e.g. new iNaturalist data)")
     command("paths", cmd_paths, "calculate least-cost paths").add_argument(
         "--force", action="store_true", help="recalculate even if nothing changed")
-    c = command("sweep", cmd_sweep, "sensitivity sweep")
+    c = command("sensitivity", cmd_sensitivity, "sensitivity test")
     c.add_argument("--from", dest="from_", type=float, help="high-resolution range: first threshold")
     c.add_argument("--to", type=float, help="high-resolution range: last threshold")
     c.add_argument("--step", type=float, help="high-resolution range: step")

@@ -6,7 +6,7 @@ repository). They are not part of this repository. Every intended difference to 
 explained in tests/REFERENCE.md; this file checks exactly those differences and nothing else.
 
 Run:  python -m pytest tests            (fast, ~10 s)
-      python -m pytest tests -m slow    (full sensitivity sweep as in the paper, several minutes)
+      python -m pytest tests -m slow    (full sensitivity test as in the paper, several minutes)
 """
 import os
 import numpy as np
@@ -20,7 +20,7 @@ REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 REF_DIR = os.environ.get("BIOINVASION_REFERENCE_DIR", os.path.join(os.path.dirname(REPO), "manuscript", "data"))
 REF_RUN = "msculp20241203_2024_4-4"
 REF_GPKG = os.path.join(REF_DIR, f"{REF_RUN}.gpkg")
-REF_SWEEP = os.path.join(REF_DIR, "msculp20241203_2024_sensitivity_0-01_steps_sensitivity_test.csv")
+REF_SENSITIVITY = os.path.join(REF_DIR, "msculp20241203_2024_sensitivity_0-01_steps_sensitivity_test.csv")
 PRESENCE = os.path.join(REF_DIR, "msculpturalis_20241203.gpkg")
 COST = os.path.join(REF_DIR, "sdm_esri-102031_inverted_scaled-0-1.tif")
 
@@ -28,7 +28,7 @@ COST = os.path.join(REF_DIR, "sdm_esri-102031_inverted_scaled-0-1.tif")
 STANDARD = {"observation_year": "year", "country": "location"}  # column names in the reference -> standard schema
 START_YEAR, END_YEAR = 2008, 2024
 THRESHOLD = 4.4          # absolute accumulated cost
-SWEEP_STEPS = np.arange(6793) * 0.01  # 0 to 67.92, as in the published sweep
+SENSITIVITY_THRESHOLDS = np.arange(6793) * 0.01  # 0 to 67.92, as in the published sensitivity test
 ROBUST_STEPS = np.arange(5, 16, 1)
 
 pytestmark = pytest.mark.skipif(not os.path.exists(REF_GPKG), reason=f"reference data not found in {REF_DIR}")
@@ -37,13 +37,13 @@ pytestmark = pytest.mark.skipif(not os.path.exists(REF_GPKG), reason=f"reference
 # ---------------------------------------------------------------------------------------------------------------------
 # The only part that changes when the code structure changes: run the analysis and return its results.
 # ---------------------------------------------------------------------------------------------------------------------
-def run_pipeline(out_dir, sweep=False):
+def run_pipeline(out_dir, sensitivity=False):
     """Runs the paper's analysis as a project through bioinvasion.pipeline (the same code as cli.py)."""
     import sys
     sys.path.insert(0, REPO)
     from bioinvasion import pipeline
     from bioinvasion.config import load_config
-    from bioinvasion.core.sensitivity import sweep as run_sweep
+    from bioinvasion.core.sensitivity import sensitivity_test
 
     # The reference observations use other column names than the standard schema, so they are converted first
     gpd.read_file(PRESENCE).rename(columns={**STANDARD, "id": "source_id"}).to_file(
@@ -61,9 +61,9 @@ def run_pipeline(out_dir, sweep=False):
                    for lyr in ["paths_grouped", "points_grouped"]})
     result["expansion_rates"] = pd.read_csv(os.path.join(folder, "expansion_rates.csv"))
     result["cumulative_distances"] = pd.read_csv(os.path.join(folder, "cumulative_distances.csv"))
-    if sweep:
+    if sensitivity:
         run = pipeline.load_paths(paths_dir)
-        result["sweep"] = run_sweep(run["paths"], run["points"], run["cell_size"], SWEEP_STEPS, ROBUST_STEPS)
+        result["sensitivity"] = sensitivity_test(run["paths"], run["points"], run["cell_size"], SENSITIVITY_THRESHOLDS, ROBUST_STEPS)
     return result
 # ---------------------------------------------------------------------------------------------------------------------
 
@@ -152,13 +152,13 @@ def test_expansion_rates(new):
 
 
 @pytest.mark.slow
-def test_sweep(tmp_path_factory):
+def test_sensitivity(tmp_path_factory):
     """
     The number of populations per threshold does not depend on the expansion rate method or the robust definition,
-    so it must equal the published sweep. The robust columns are compared in REFERENCE.md, difference 3.
+    so it must equal the published sensitivity test. The robust columns are compared in REFERENCE.md, difference 3.
     """
-    cur = run_pipeline(str(tmp_path_factory.mktemp("sweep")), sweep=True)["sweep"]
-    old = pd.read_csv(REF_SWEEP)
+    cur = run_pipeline(str(tmp_path_factory.mktemp("sensitivity")), sensitivity=True)["sensitivity"]
+    old = pd.read_csv(REF_SENSITIVITY)
     assert len(cur) == len(old)
     np.testing.assert_allclose(cur["threshold"], old["threshold"], atol=1e-9)
     assert (cur["num_groups"].values == old["num_groups"].values).all()

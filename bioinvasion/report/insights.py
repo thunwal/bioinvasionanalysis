@@ -1,6 +1,6 @@
 """
-Helps the scientist choose the accumulated cost threshold: stable ranges of the sensitivity sweep, the suggested range
-for the high-resolution sweep, and plain-language checks of a delineation. Every suggestion comes with the rule that
+Helps the scientist choose the accumulated cost threshold: stable ranges of the sensitivity test, the suggested range
+for its high-resolution run, and plain-language checks of a delineation. Every suggestion comes with the rule that
 produced it, so it can be reported and questioned. Messages are (level, Markdown text) with level one of
 "ok", "info", "warn" or "tip"; the CLI prints them, the web app shows them as coloured notes.
 """
@@ -20,13 +20,13 @@ def nice_step(x):
     return float(min((m * 10 ** exp for m in (1, 2, 5, 10) if m * 10 ** exp >= x), default=x))
 
 
-def nearest_definition(sweep, definition):
-    """The robust definition of the sweep that is closest to 'definition'."""
-    definitions = np.array(sorted(sweep["definition_robust"].unique()))
+def nearest_definition(sens, definition):
+    """The robust definition of the sensitivity test that is closest to 'definition'."""
+    definitions = np.array(sorted(sens["definition_robust"].unique()))
     return definitions[np.argmin(np.abs(definitions - definition))]
 
 
-def stable_ranges(sweep, definition, tolerance=0.25, max_quantile=0.995, n=3):
+def stable_ranges(sens, definition, tolerance=0.25, max_quantile=0.995, n=3):
     """
     Finds threshold ranges in which the average expansion rate of robust populations stays within +/- tolerance
     around the middle of its range. Ranges are ranked by their width in threshold units (i.e. in dispersal capacity).
@@ -34,8 +34,8 @@ def stable_ranges(sweep, definition, tolerance=0.25, max_quantile=0.995, n=3):
     the few remaining steps would otherwise form long, meaningless "stable" ranges.
     """
     ratio = (1 + tolerance) / (1 - tolerance)
-    s = sweep[(sweep["definition_robust"] == definition) & (sweep["avg_rate"] > 0)
-              & (sweep["quantile"] <= max_quantile)].sort_values("threshold")
+    s = sens[(sens["definition_robust"] == definition) & (sens["avg_rate"] > 0)
+              & (sens["quantile"] <= max_quantile)].sort_values("threshold")
     r, t, q = s["avg_rate"].to_numpy(), s["threshold"].to_numpy(), s["quantile"].to_numpy()
     found, left = [], 0
     hi, lo = deque(), deque()  # indices of window maximum / minimum (monotonic queues)
@@ -61,18 +61,18 @@ def stable_ranges(sweep, definition, tolerance=0.25, max_quantile=0.995, n=3):
         if len(ranges) == n:
             break
     return [{"from": float(t[a]), "to": float(t[b]), "q_from": float(q[a]), "q_to": float(q[b]),
-             "rate_min": r[a:b + 1].min() / 1000, "rate_max": r[a:b + 1].max() / 1000} for _, a, b in ranges]
+             "rate_min": float(r[a:b + 1].min() / 1000), "rate_max": float(r[a:b + 1].max() / 1000)} for _, a, b in ranges]
 
 
 def coarse_thresholds(costs, steps):
-    """Thresholds of the overview sweep: 0 to the highest accumulated cost, in about 'steps' round steps."""
+    """Thresholds of the sensitivity test overview: 0 to the highest accumulated cost, in about 'steps' round steps."""
     step = nice_step(np.max(costs) / steps)
     return np.arange(0, np.max(costs) + step, step).round(12), step
 
 
 def suggest_fine_range(coarse, costs, definition, s):
     """
-    Suggests the range of the high-resolution sweep from the overview sweep ('s' = SweepConfig). Returns a dict with
+    Suggests the high-resolution range of the sensitivity test from its overview ('s' = SensitivityConfig). Returns a dict with
     from, to, step, the stable ranges found, and 'rule': the rule in words, as shown to the user and stored.
     """
     cap = float(np.quantile(costs, s.max_quantile))
@@ -82,13 +82,13 @@ def suggest_fine_range(coarse, costs, definition, s):
         lo, hi = min(r["from"] for r in ranges), max(r["to"] for r in ranges)
         margin = s.margin * (hi - lo)
         lo, hi = max(lo - margin, 0.0), min(hi + margin, cap)
-        rule = (f"Overview sweep: stable ranges for robust definition {definition:g}, where the average expansion "
+        rule = (f"Sensitivity test overview: stable ranges for robust definition {definition:g}, where the average expansion "
                 f"rate stays within ±{s.stable_tolerance:.0%} (top {1 - s.max_quantile:.1%} of paths ignored). "
                 f"Suggested range: from the lowest start to the highest end of the {len(ranges)} widest stable "
                 f"range(s), widened by {s.margin:.0%} on each side and capped at Q{s.max_quantile:g} ({fmt(cap)}).")
     else:
         lo, hi = 0.0, cap
-        rule = (f"Overview sweep: no stable range found for robust definition {definition:g} (average rate within "
+        rule = (f"Sensitivity test overview: no stable range found for robust definition {definition:g} (average rate within "
                 f"±{s.stable_tolerance:.0%}). Suggested range: 0 to Q{s.max_quantile:g} ({fmt(cap)}).")
     step = nice_step((hi - lo) / s.fine_steps) if hi > lo else nice_step(cap / s.fine_steps)
     lo, hi = np.floor(lo / step) * step, np.ceil(hi / step) * step
@@ -120,23 +120,23 @@ def suggest_breakpoints(years, distances):
     return best
 
 
-def sweep_checks(sweep, threshold, definition):
-    """Notes on the chosen threshold in the light of the sweep."""
+def sensitivity_checks(sens, threshold, definition):
+    """Notes on the chosen threshold in the light of the sensitivity test."""
     msgs = []
-    tmin, tmax = sweep["threshold"].min(), sweep["threshold"].max()
+    tmin, tmax = sens["threshold"].min(), sens["threshold"].max()
     if not tmin <= threshold <= tmax:
-        msgs.append(("warn", f"The threshold {fmt(threshold)} lies **outside the swept range** {fmt(tmin)}–"
-                             f"{fmt(tmax)}, so the sweep cannot tell whether it lies in a stable range."))
+        msgs.append(("warn", f"The threshold {fmt(threshold)} lies **outside the tested range** {fmt(tmin)}–"
+                             f"{fmt(tmax)}, so the sensitivity test cannot tell whether it lies in a stable range."))
         return msgs
-    at = sweep.iloc[(sweep["threshold"] - threshold).abs().argsort()]
+    at = sens.iloc[(sens["threshold"] - threshold).abs().argsort()]
     at = at[at["threshold"] == at["threshold"].iloc[0]].dropna(subset=["avg_rate"])
     if len(at) > 1 and at["avg_rate"].max() > 0:
         spread = (at["avg_rate"].max() - at["avg_rate"].min()) / at["avg_rate"].mean()
         msgs.append(("ok" if spread < 0.1 else "info",
                      f"At this threshold, the average expansion rate is {at['avg_rate'].min() / 1000:.1f}–"
-                     f"{at['avg_rate'].max() / 1000:.1f} km/year across the swept robust population definitions"
+                     f"{at['avg_rate'].max() / 1000:.1f} km/year across the tested robust population definitions"
                      f"{' (insensitive to the definition)' if spread < 0.1 else ''}."))
-    ranges = stable_ranges(sweep, nearest_definition(sweep, definition))
+    ranges = stable_ranges(sens, nearest_definition(sens, definition))
     inside = [r for r in ranges if r["from"] <= threshold <= r["to"]]
     if inside:
         r = inside[0]

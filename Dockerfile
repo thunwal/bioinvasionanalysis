@@ -14,7 +14,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY --chown=user pyproject.toml .
 COPY --chown=user bioinvasion bioinvasion
 COPY --chown=user webapp webapp
-COPY --chown=user data/cost_surface_gtopo30_esri102031_5km_exp_rescaled.tif data/
+COPY --chown=user data/cost_surface_gtopo30_esri102031_5km_exp_base1_k9.tif data/
 RUN pip install --no-cache-dir --no-deps .
 
 USER user

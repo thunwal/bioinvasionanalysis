@@ -170,14 +170,12 @@ cython_debug/
 *.pdf
 *.docx
 
-# Data folder: run outputs and private data are not tracked.
-# Files already in the repository (demo data) remain tracked.
+# Data folder: only the demo cost surface is tracked; private data and run outputs stay local.
 data/*
+!data/cost_surface_gtopo30_esri102031_5km_exp_base1_k9.tif
 
-# Outputs of the example projects
-examples/*/*
-!examples/*/project.toml
-!examples/*/*.csv
+# Project folder created by the demo notebook
+notebooks/demo_project/
 
 # Web app session folders
 webapp_jobs/

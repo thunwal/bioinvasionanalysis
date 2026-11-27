@@ -3,5 +3,5 @@
 !pyproject.toml
 !bioinvasion/
 !webapp/
-!data/cost_surface_gtopo30_esri102031_5km_exp_rescaled.tif
+!data/cost_surface_gtopo30_esri102031_5km_exp_base1_k9.tif
 **/__pycache__
