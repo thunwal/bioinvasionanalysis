@@ -10,3 +10,4 @@ ipython
 matplotlib
 contextily
 notebook
+openpyxl

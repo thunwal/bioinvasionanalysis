@@ -8,14 +8,14 @@ workdir_path = r"/home/christa/Git/bioinvasionanalysis/data/"
 
 # SCRIPT RUN NAME
 # Output file names and layers will be prefixed with {run} and existing files/layers with identical name overwritten
-run = "vvelutina_gtopo30exp5km"
+run = "vvelutina_gtopo30exp5km_base1k9_40_20261125"  #0.13
 
 # EXECUTION MODE
 # Controls which parts of the script are executed:
 # "analysis": Run analysis only, excluding sensitivity test
 # "all": Run analysis and sensitivity test
 # "test": Run the sensitivity test only. Prerequisite: Run in analysis mode once to calculate least-cost paths.
-mode = "test"
+mode = "analysis"
 # ======================================================================================================================
 
 # ================================================= DATA ===============================================================
@@ -23,14 +23,14 @@ mode = "test"
 # Source of the observation data:
 # "file": use your own GPKG file (see presence_name, year_field, location_field)
 # "inaturalist": download observations from iNaturalist (see section INATURALIST below)
-presence_source = "inaturalist"
+presence_source = "file"
 # Name of the file, expected in GPKG format, with identical file and layer name.
 # For presence_source = "inaturalist", the download is saved under this name.
-presence_name = "vvelutina_20261113.gpkg"
+presence_name = "vvelutina_20261123.gpkg"
 # Field containing observation year, expected in integer format (ignored for iNaturalist: "year")
 year_field = "year"
 # Free text field intended to describe the location of a point (ignored for iNaturalist: "country")
-location_field = "countryCode"
+location_field = "country" #countryCode
 # First year to be analyzed (usually the year of the first observation). None = earliest year in the data
 start_year = None
 # Last year to be analyzed (usually the latest completed year of observation). None = latest year in the data
@@ -44,12 +44,12 @@ inat_quality_grade = "research"  # "research", "needs_id", "casual", or combinat
 # Obscured observations have coordinates randomised by up to ~20 km (privacy, protected species). Recommended: True
 inat_exclude_obscured = False
 # Exclude observations with a positional accuracy worse than this value in metres. None = cell size of cost surface
-inat_max_positional_accuracy = None
+inat_max_positional_accuracy = 20000
 inat_refresh = False
 
 # COST SURFACE
 # Name of the file, expected in GeoTIFF format
-cost_name = "cost_surface_gtopo30_esri102031_5km_exp_rescaled.tif"
+cost_name = "cost_surface_gtopo30_esri102031_5km_exp_base1_k9.tif"
 # ======================================================================================================================
 
 # ===================== POPULATION DELINEATION (required for "analysis" and "all" modes) ===============================
@@ -57,14 +57,14 @@ cost_name = "cost_surface_gtopo30_esri102031_5km_exp_rescaled.tif"
 # To isolate populations, we remove least-cost paths that have an accumulated cost exceeding a specified threshold.
 # This threshold is defined as a quantile of the accumulated cost distribution. If not specified,
 # the script defaults to the upper outlier fence, calculated as Q3 + 1.5 * IQR.
-threshold = 0.89  # example for acc. cost value: 4.4 / for quantile value: 0.95
-threshold_is_absolute = False  # True = acc. cost value, False = quantile value
+threshold = 40  # example for acc. cost value: 4.4 / for quantile value: 0.95
+threshold_is_absolute = True  # True = acc. cost value, False = quantile value
 # ======================================================================================================================
 
 # ========================== SENSITIVITY TEST (required for "test" and "all" mode) =====================================
 # ACCUMULATED COST THRESHOLD RANGE to be tested.
 # If not specified, the following test step range will be used: np.arange(0.00, max_cost + 0.01, 0.01)
-acc_cost_test_steps = np.arange(9, 10, 0.01)  # example for acc. cost values: np.arange(0.00, 51.00, 0.01) / for quantile values: np.arange(0.85, 0.98, 0.001)
+acc_cost_test_steps = np.arange(21, 45, 0.1) #np.arange(9, 10, 0.01)  # example for acc. cost values: np.arange(0.00, 51.00, 0.01) / for quantile values: np.arange(0.85, 0.98, 0.001)
 acc_cost_steps_are_absolute = True
 
 # ROBUST POPULATION DEFINITION RANGE to be tested.
@@ -91,7 +91,7 @@ basemap = "relief"
 basemap_zoom = "auto"  # "auto" matches the tile resolution to the video width, or an integer zoom level
 # Only used for basemap = "relief":
 relief_strength = 1.0  # contrast of the relief shading (0 = flat, 1 = default, 2 = strong)
-water_colour = "#dce9f2"
+water_colour = "#e5f5ff" #"#dcf1ff" #"#dce9f2"
 border_colour = "#9a9a9a"
 
 # MAP CRS
@@ -102,9 +102,28 @@ map_crs = None
 # Hides paths longer than this value in km, e.g. 300. None shows all paths of the population delineation.
 max_path_length_km = None
 
+# ONE CLASS
+# True: all paths are drawn as one class "Possible dispersal path" and all observations (connected and isolated)
+# as one class "Observation", both in one_class_colour. False: populations coloured as in the paper.
+reduce_to_one_class = True
+one_class_colour = "#377eb8"  # dark blue of the population palette
+
+# LEGEND LABELS
+# Populations are labelled automatically ('{first country} {first year}'); all other legend entries are set here.
+legend_title = r"$\it{Vespa}$ $\it{velutina}$"  # "" = no title
+legend_labels = {
+    "path": "Möglicher Ausbreitungsweg",                # reduce_to_one_class = True
+    "observation": "Beobachtung",                     # reduce_to_one_class = True
+    "sparse_population": "Sparse population",         # reduce_to_one_class = False
+    "isolated_observation": "Isolated observation",   # reduce_to_one_class = False
+    "first_observation": "Erste Beobachtung in der Region",
+}
+
 # OUTPUT
 animation_file = f"{run}_animation.mp4"  # ".mp4" (requires ffmpeg) or ".gif"
-animation_title = ""  # e.g. "Megachile sculpturalis in Europe"
+animation_title = ""  #Spread of Vespa velutina in Europe"  # e.g. "Megachile sculpturalis in Europe"
+# Footer with source credits, shown in the lower right corner, followed by the basemap credits. "" = basemap credits only
+animation_footer = "Animation: Christa Rohrbach | Beobachtungsdaten: iNaturalist.org, infofauna.ch, invasives.ie, AOPK ČR,\nEPPO Reporting Service, Martin Alfare, HAXAIRE et al. 2006, Kolics et al. 2025, Márta & Vas 2023,\nPurkart et al. 2026, Rojas-Nossa et al. 2026, Walter et al. 2024"
 fps = 30
 seconds_per_year = 3.0
 hold_start = 1.0  # seconds showing the first year before the animation starts
@@ -120,6 +139,12 @@ duration_exponent = 0.5
 
 # PREVIEW
 # Set to a (fractional) year, e.g. 2019.4, to render a single PNG frame instead of the video. Useful to check the
-# layout quickly. None renders the video.
+# layout quickly. "end" renders the final state (e.g. as a still image). None renders the video.
 preview_year = None
+
+# MAP EXTENT
+# Zooms the map (video or preview) to a lon/lat box (lon_min, lat_min, lon_max, lat_max), widened to the aspect
+# ratio of width_px/height_px. The basemap is loaded at a matching (higher) zoom level. None shows all observations.
+# Example, Austria and surroundings: (8.0, 45.3, 18.5, 50.3)
+map_extent = None
 # ======================================================================================================================
