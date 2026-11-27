@@ -17,149 +17,81 @@ Version 1.1.0 of this repository was published as part of:
 > a case study of an invasive wild bee species. *Landscape Ecology*, 40(8). 
 > [https://doi.org/10.1007/s10980-025-02188-9](https://doi.org/10.1007/s10980-025-02188-9)
 
-## Project structure
+## Overview
 
-To analyze your data, you may use the provided [Jupyter notebook](notebooks/bioinvasionanalysis_demo.ipynb)
-or run `main.py`. We recommend using the notebook to familiarize yourself with the project.
-Either way you may want to start with the included demo data and default parameters to get your first results.
+The analysis runs in stages on a **project folder**, which holds a `project.toml` with all settings and receives all
+results. The same code is used by the command line (`cli.py`), the [demo notebook](notebooks/bioinvasionanalysis_demo.ipynb)
+and the web app.
 
-The demo data consists of European [observation data](data/imexicana_20241227.gpkg) for the
-[Mexican grass-carrying wasp](https://en.wikipedia.org/wiki/Isodontia_mexicana)
-retrieved from GBIF ([source](https://doi.org/10.15468/dl.jm6bhs)), 
-and a very basic [cost surface](data/cost_surface_gtopo30_esri102031_5km_exp_rescaled.tif) derived from the GTOPO30 DEM by USGS
-([source](https://www.usgs.gov/centers/eros/science/usgs-eros-archive-digital-elevation-global-30-arc-second-elevation-gtopo30)).
+| Stage | What happens | Output in the project folder |
+|---|---|---|
+| 1 import | observations are read and checked (CSV, GeoPackage or iNaturalist) | `presence/` |
+| 2 paths | observations on NoData cells are removed, the earliest observation per cost surface cell is kept, and each observation is connected to the nearest earlier one by a least-cost path | `paths__<cost>__<years>/paths.gpkg` |
+| 3 sweep | sensitivity analysis: overview over all thresholds, then a high-resolution sweep over a suggested range | `paths__.../sweep*.csv` |
+| 4 delineate | populations for one accumulated cost threshold, expansion rates | `paths__.../delin__t<threshold>__r<robust>/` |
+| 5 report | figures and tables of the paper, plain-language checks | `delin__.../report/` |
 
-## Workflow
+Every stage writes a `manifest.json` with its settings, the hashes of its input files and the code version, and is
+skipped if nothing has changed. A new threshold therefore takes seconds: the least-cost paths are reused.
+See [docs/architecture.md](docs/architecture.md) for how the code is organised.
 
-0. **Prepare input data** *(only if you intend to analyze your own data)*
-   - See chapter "Input data requirements"
-1. **Run the analysis**  
-   - **a) using the Jupyter notebook**, see chapter "Running the Jupyter notebook"  
-   - **b) or by running the script**, see chapter "Running the script"
-2. **Work with the results in your favourite tools**
-   - `{run}.gpkg` Least-cost paths and observation data assigned to populations (GPKG file)
-   - `{run}_cumulative_distances.csv` Cumulative distances for all populations and years (CSV file)
-   - `{run}_expansion_rates.csv` Expansion rates for all populations (CSV file)
-   - `{run}_sensitivity_test.csv` Sensitivity test (effect of parameters on results) (CSV file)
+## Setup
 
-## Project setup
-
-1. **Clone the repository**  
-   On Windows:
-    ```bash
-    cd c:\path\to\myprojects  # path were you want to save bioinvasionanalysis
-    git clone https://github.com/thunwal/bioinvasionanalysis.git  # downloads the repository
-    ```
-
-2. **Create a virtual environment**  
-    On Windows:
-    ```bash
-    cd c:\path\to\myenvs  # path where you want to create the environment
-    python -m venv venv_bioinv  # creates an environment "venv_bioinv"
-    venv_bioinv\Scripts\activate  # activates the enviornment "venv_bioinv"
-    ```
-
-3. **Install required packages**  
-    On Windows:
-    ```bash
-    cd c:\path\to\myprojects\bioinvasionanalysis  # navigate to the repository
-    python -m pip install -r requirements.txt  # this text file contains the packages to be installed
-    ```
-
-## Running the Jupyter notebook
-
-1. Start the notebook server. Enter the following in the terminal: 
-   ```bash
-   jupyter notebook
-   ```
-2. A new browser tab should open. Open the folder `notebooks` and click `bioinvasionanalysis_demo.ipynb`.
-3. Follow the instructions given in the notebook.
-
-## Running the script
-
-1. Check the parameters in `params.py`. 
-2. Refer to the comments in `params.py` for explanations on the parameters.
-3. Run the `main.py` script. Enter the following in the terminal:
-   ```bash
-   python c:\path\to\myprojects\bioinvasionanalysis\main.py
-   ```
-
-## Creating an animation
-
-`animate.py` renders the results of a run as an animated map (MP4 or GIF): least-cost paths grow year by year
-towards their destination observation, and each observation appears as soon as its path reaches it. Robust populations
-are coloured, sparse populations and isolated observations are grey, as in the population map of the paper.
-The basemap (by default a light relief with water bodies and country borders, or any tile provider) is downloaded
-automatically and aligned with the data. Natural Earth layers are cached in `~/.cache/bioinvasionanalysis`.
-
-1. Run the analysis first (see above), so that the run's GPKG and expansion rate CSV exist.
-2. Check the parameters in the section `ANIMATION` of `params.py`. Tip: set `preview_year` to check the layout
-   with a single frame before rendering the full video.
-3. Run the `animate.py` script. MP4 output requires [ffmpeg](https://ffmpeg.org) to be installed.
-   ```bash
-   python c:\path\to\myprojects\bioinvasionanalysis\animate.py
-   ```
-
-## Input data requirements
-
-Note: The observation data are automatically projected to the coordinate reference system of the cost surface.
-
-**Observation data from iNaturalist:** Instead of preparing your own file, you can let the script download
-observations from [iNaturalist](https://www.inaturalist.org). Set `presence_source = "inaturalist"` and the
-parameters in the section `INATURALIST` of `params.py` (species, quality grade, etc.). Observations are downloaded
-for the extent of the cost surface, saved as `presence_name` and reused in later runs. Each observation is assigned
-the country it is located in (Natural Earth). Set `start_year` and `end_year` to `None` to analyse all years covered
-by the observations. Depending on the number of observations, the download may take several minutes, as the
-iNaturalist API is queried at a rate of about one request per second.
-
-- **Observation data**:  
-   Format: Point data (GeoPackage, *.GPKG)  
-   The layer name must match the file name.  
-   Required fields (field names can be configured in `params.py`):  
-   - Observation year (integer), e.g. 2020
-   - Name or code of location (string), e.g. "Austria" or "Vienna, AT"
-   - Point geometry
-<br><br>
-- **Cost surface**:  
-  Format: Raster (GeoTIFF, *.TIF)  
-  The values represent the cost of moving through the landscape.  
-  Note that the cells must have equal side lengths.
-
-## Creating a results report
-
-`report.py` recreates the result figures and tables of the paper (Fig. 5, Fig. 6, Tab. 1, Tab. 2) for any completed
-run, so you can quickly inspect your results. Population names, labels, thresholds and axis ranges are derived from the
-data. Settings default to `params.py` and can be overridden on the command line (`python report.py --help`).
-
-1. Run the analysis first (`analysis` or `all` mode). Panel a of the sensitivity figure additionally requires a
-   sensitivity test (`test` or `all` mode); otherwise it is left out.
-2. Run the `report.py` script. The output is saved to `<workdir>/<run>_report`:
-   - `<run>_fig_sensitivity.png`: (a) sensitivity analysis, (b) populations of an optional comparison run,
-     (c) delineated populations, (d) histogram of median observations per year
-   - `<run>_fig_populations.png`: (a) robust populations, (b) cumulative distance to the first observation over time
-   - `<run>_populations.csv`: all populations with expansion rates; `<run>_summary.txt`: key numbers
-   - `<run>_phases.csv`: expansion rates per phase (only with `--breakpoints`)
-   ```bash
-   python c:\path\to\myprojects\bioinvasionanalysis\report.py
-   ```
-
-**Interactive exploration:** the [results explorer notebook](notebooks/results_explorer.ipynb) loads a run and lets
-you re-delineate populations with a different accumulated cost threshold or robust population definition within
-seconds (the least-cost paths are not recalculated). It explains each result in plain sentences, warns about typical
-problems (e.g. a threshold outside the tested range, implausibly long paths, poor linear fits), suggests stable
-threshold ranges and expansion phases, and exports figures, tables and the settings for `params.py`.
-
-To reproduce the figures of the paper (run with threshold 4.4, comparison run with threshold 3.3):
 ```bash
-python report.py --run msculp_4-4 --threshold 4.4 --threshold-is-absolute --compare-run msculp_3-3 \
-  --compare-label "accumulated cost threshold = 3.3" --split-at 10 \
-  --breakpoints "Italy 2009a=2011-2020" --breakpoints "France 2008=2011-2021" --formats png pdf
+git clone https://github.com/thunwal/bioinvasionanalysis.git
+cd bioinvasionanalysis
+python -m venv .venv
+source .venv/bin/activate        # Windows: .venv\Scripts\activate
+python -m pip install -r requirements.txt
 ```
 
-## Development ideas
+## Quick start with the demo project
 
-- automatic detection of first and last observation year
-- add the sensitivity test to the Jupyter notebook
-- enhance Jupyter notebook with interactive maps
-- retrieve observation data for a given species from the GBIF API
-- open to community suggestions and contributions
+The demo project [examples/isodontia](examples/isodontia/project.toml) uses European observations of the
+[Mexican grass-carrying wasp](https://en.wikipedia.org/wiki/Isodontia_mexicana) from GBIF
+([source](https://doi.org/10.15468/dl.jm6bhs)) and a very basic
+[cost surface](data/cost_surface_gtopo30_esri102031_5km_exp_rescaled.tif) derived from the GTOPO30 DEM by USGS
+([source](https://www.usgs.gov/centers/eros/science/usgs-eros-archive-digital-elevation-global-30-arc-second-elevation-gtopo30)).
+
+```bash
+python cli.py sweep examples/isodontia                     # import, paths, sensitivity sweep (about 2 min)
+python cli.py report examples/isodontia --threshold 0.19   # populations, figures, tables, checks
+```
+
+Or open [notebooks/bioinvasionanalysis_demo.ipynb](notebooks/bioinvasionanalysis_demo.ipynb) (`jupyter notebook`).
+
+## Your own project
+
+1. `python cli.py init ~/projects/myspecies` writes a commented `project.toml` template.
+2. Set the observations (`[data]`) and the cost surface (`[cost]`).
+3. `python cli.py sweep ~/projects/myspecies` runs the analysis up to the sensitivity sweep. It prints the
+   high-resolution range it chose, the rule it used, and the stable threshold ranges it found.
+4. Choose the threshold yourself, typically at the beginning of a stable range, and run
+   `python cli.py report ~/projects/myspecies --threshold <value>`. Try other values the same way; each gets its own
+   `delin__...` folder. Put the final value into `[delineation] threshold`.
+
+`python cli.py --help` lists all commands and options.
+
+## Input data
+
+Inputs that do not meet these requirements are rejected with an explanation; nothing is guessed or repaired.
+
+- **Observations as CSV**: UTF-8 ("CSV UTF-8" in Excel), comma- or semicolon-separated (recognised automatically;
+  with semicolons, decimal commas are accepted in the coordinates). Required columns: `longitude`, `latitude`
+  (WGS84 decimal degrees) and `year` (integer). Optional: `location` (e.g. country; used to name populations,
+  e.g. "France 2008"), `source`, `source_id`. Other columns are ignored.
+- **Observations as GeoPackage**: one point layer (or name the layer with `layer = "..."`) with a defined coordinate
+  reference system and a `year` column (integer); optional `location`, `source`, `source_id`.
+- **Observations from iNaturalist**: set `source = "inaturalist"` and `taxon`. Observations within the extent of the
+  cost surface are downloaded (about one request per second, so this may take minutes) and assigned the country they
+  lie in (Natural Earth). Options: research grade only (default), include obscured coordinates (default: no),
+  maximum positional accuracy (default: no limit).
+- **Cost surface**: GeoTIFF in a projected coordinate reference system with square cells. The values are the cost of
+  moving through a cell; NoData cells (e.g. sea) cannot be crossed, and observations on them are removed.
+
+## Tests
+
+`python -m pytest` checks the code against the published *Megachile sculpturalis* analysis and the input rules;
+`python -m pytest -m slow` additionally runs the full sensitivity sweep of the paper. The reference data are read
+from `../manuscript/data` (or `BIOINVASION_REFERENCE_DIR`). Intended differences to the published results are
+documented in [tests/REFERENCE.md](tests/REFERENCE.md). Changes are listed in [CHANGES.md](CHANGES.md).
