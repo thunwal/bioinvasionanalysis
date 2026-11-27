@@ -125,6 +125,37 @@ iNaturalist API is queried at a rate of about one request per second.
   The values represent the cost of moving through the landscape.  
   Note that the cells must have equal side lengths.
 
+## Creating a results report
+
+`report.py` recreates the result figures and tables of the paper (Fig. 5, Fig. 6, Tab. 1, Tab. 2) for any completed
+run, so you can quickly inspect your results. Population names, labels, thresholds and axis ranges are derived from the
+data. Settings default to `params.py` and can be overridden on the command line (`python report.py --help`).
+
+1. Run the analysis first (`analysis` or `all` mode). Panel a of the sensitivity figure additionally requires a
+   sensitivity test (`test` or `all` mode); otherwise it is left out.
+2. Run the `report.py` script. The output is saved to `<workdir>/<run>_report`:
+   - `<run>_fig_sensitivity.png`: (a) sensitivity analysis, (b) populations of an optional comparison run,
+     (c) delineated populations, (d) histogram of median observations per year
+   - `<run>_fig_populations.png`: (a) robust populations, (b) cumulative distance to the first observation over time
+   - `<run>_populations.csv`: all populations with expansion rates; `<run>_summary.txt`: key numbers
+   - `<run>_phases.csv`: expansion rates per phase (only with `--breakpoints`)
+   ```bash
+   python c:\path\to\myprojects\bioinvasionanalysis\report.py
+   ```
+
+**Interactive exploration:** the [results explorer notebook](notebooks/results_explorer.ipynb) loads a run and lets
+you re-delineate populations with a different accumulated cost threshold or robust population definition within
+seconds (the least-cost paths are not recalculated). It explains each result in plain sentences, warns about typical
+problems (e.g. a threshold outside the tested range, implausibly long paths, poor linear fits), suggests stable
+threshold ranges and expansion phases, and exports figures, tables and the settings for `params.py`.
+
+To reproduce the figures of the paper (run with threshold 4.4, comparison run with threshold 3.3):
+```bash
+python report.py --run msculp_4-4 --threshold 4.4 --threshold-is-absolute --compare-run msculp_3-3 \
+  --compare-label "accumulated cost threshold = 3.3" --split-at 10 \
+  --breakpoints "Italy 2009a=2011-2020" --breakpoints "France 2008=2011-2021" --formats png pdf
+```
+
 ## Development ideas
 
 - automatic detection of first and last observation year
