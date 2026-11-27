@@ -32,6 +32,7 @@ from shapely.geometry import box
 from shapely.ops import linemerge
 
 from src.naturalearth import CACHE_DIR, natural_earth
+from src.robust import is_robust
 
 matplotlib.use("Agg")
 
@@ -106,7 +107,7 @@ def prepare_data(in_gpkg, in_paths, in_points, in_rates_csv, year_field, robust_
 
     # Population attributes
     rates["group_id"] = rates["group_id"].astype(int)
-    rates["robust"] = rates["median_points_per_year"] > robust_definition
+    rates["robust"] = is_robust(rates["median_points_per_year"], robust_definition)
     robust = rates[rates["robust"]].sort_values("group_name")  # alphabetical order as in ggplot
     # Set1 as in the paper, without its yellow (poorly visible on light maps) and grey (reserved for sparse
     # populations), extended by Dark2 (without grey) for more than seven robust populations

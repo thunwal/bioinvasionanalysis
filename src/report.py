@@ -28,6 +28,7 @@ from rasterio.warp import transform_bounds
 from shapely.geometry import LineString
 
 from src.naturalearth import natural_earth
+from src.robust import is_robust
 
 
 GREY = "#8b9a9a"  # close to R's "azure4" used in the paper
@@ -137,7 +138,7 @@ def build_run_data(run, paths, paths_grouped, points_grouped, rates, cumdist, se
 
 def set_robust_definition(data, robust_definition):
     """(Re)classifies populations as robust (median observations per year above the definition) or sparse."""
-    data["rates"]["robust"] = data["rates"]["median_points_per_year"] > robust_definition
+    data["rates"]["robust"] = is_robust(data["rates"]["median_points_per_year"], robust_definition)
     data["cumdist"]["robust"] = data["cumdist"]["group_id"].map(data["rates"].set_index("group_id")["robust"])
     data["robust_definition"] = robust_definition
     return data

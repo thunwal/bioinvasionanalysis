@@ -4,6 +4,7 @@ import pandas as pd
 import geopandas as gpd
 from src.populations import group_paths, group_points
 from src.expansionrate import expansion_rate
+from src.robust import is_robust
 
 
 def sensitivity_analysis(in_gpkg, in_points, in_paths, out_csv_outlier_test, cell_size, year_field, location_field, acc_cost_test_steps, acc_cost_steps_are_absolute, robust_test_steps):
@@ -69,7 +70,7 @@ def sensitivity_analysis(in_gpkg, in_points, in_paths, out_csv_outlier_test, cel
 
             # Inner loop to test different definitions of robust populations
             for robust_step in robust_test_steps:
-                robust_populations = exp_rates[exp_rates['median_points_per_year'] >= robust_step]
+                robust_populations = exp_rates[is_robust(exp_rates['median_points_per_year'], robust_step)]
                 num_groups_robust = robust_populations['group_id'].nunique()
 
                 # Calculate min, max and avg expansion rate across robust populations

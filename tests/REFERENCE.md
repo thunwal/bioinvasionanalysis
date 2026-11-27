@@ -65,3 +65,16 @@ The phase regressions of the paper (breakpoints, done in R on `cumulative_distan
 year and are not affected.
 
 Decided by the author on 2026-11-27: follow the paper text.
+
+### 3. Robust populations: median *above* the definition (`>`), also in the sweep
+**Paper:** "Populations with a median above 10 were classified as robust". The R code of the paper uses `> 10`.
+
+**Old code:** the delineation, report and animation used `>`, but the sensitivity sweep used `>=`.
+
+**New code:** one helper, `is_robust()`, is used everywhere and applies `>`.
+
+The published delineation results are unaffected, because they were classified with `> 10` in R. In the sweep, only
+the robust columns change (`num_groups_robust`, `min_rate`, `max_rate`, `avg_rate`), and only where a population's
+median equals an integer robust definition exactly. The published sweep (Fig. 3a) was computed with `>=` and the old
+expansion rate method (difference 2). The number of populations per threshold (`num_groups`) is unchanged; the slow
+test checks it against the published sweep.
