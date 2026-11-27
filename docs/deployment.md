@@ -24,15 +24,19 @@ CPU upgrade $0.03/hour, about $22/month); prices: https://huggingface.co/pricing
 2. Hugging Face reads the Space settings from a header at the top of the Space's `README.md`. Create the Space with
    the website's default README, then, in this repository:
    ```bash
-   git remote add space https://huggingface.co/spaces/<user>/<space>
+   git remote add space git@hf.co:spaces/<user>/<space>  # SSH: add your public key at huggingface.co/settings/keys
    git -c fetch.negotiationAlgorithm=noop fetch space   # plain 'git fetch' fails: "expected 'acknowledgments'"
-   git checkout -b space space/main          # the Space's own history (its README.md with the header)
-   git checkout refactor -- Dockerfile .dockerignore requirements.txt pyproject.toml bioinvasion webapp \
-       data/cost_surface_gtopo30_esri102031_5km_exp_base1_k9.tif
+   git checkout -b hf space/main             # the Space's own history (its README.md with the header)
+   git checkout refactor -- Dockerfile .dockerignore requirements.txt pyproject.toml bioinvasion webapp
+   git status                                # must list only these files as staged
    git commit -m "app from bioinvasionanalysis <commit>"
-   git push space space:main                 # Hugging Face builds the image and starts the app
+   git push space hf:main                    # Hugging Face builds the image and starts the app
+   git checkout refactor
    ```
-   For later updates, repeat the `checkout refactor -- ...`, `commit` and `push` lines on the `space` branch.
+   For later updates, repeat the lines from `git checkout hf` (instead of `-b hf space/main`) on.
+   **Never use `git add -A` or `git commit -a` on the `hf` branch**: it has no `.gitignore`, so your private data
+   in `data/` and all results would be committed. Hugging Face rejects binary files in git anyway; the demo cost
+   surface is therefore downloaded from GitHub during the build (see the `Dockerfile`).
    The header in the Space's README.md must contain `sdk: docker`; add `app_port: 7860` to be explicit (7860 is the
    default).
 3. The build log and the app log are shown on the Space page ("Logs").

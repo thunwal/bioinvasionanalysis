@@ -14,7 +14,11 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY --chown=user pyproject.toml .
 COPY --chown=user bioinvasion bioinvasion
 COPY --chown=user webapp webapp
-COPY --chown=user data/cost_surface_gtopo30_esri102031_5km_exp_base1_k9.tif data/
+# Demo cost surface: downloaded from the GitHub repository at a fixed commit, because Hugging Face Spaces do not
+# accept binary files in git. To update it, set the commit of the new version here.
+ARG DEMO_SURFACE=https://raw.githubusercontent.com/thunwal/bioinvasionanalysis/8eca1ccad29b6303fe07eba06d5473a9245262d7/data/cost_surface_gtopo30_esri102031_5km_exp_base1_k9.tif
+RUN mkdir data && python -c "import urllib.request, sys; urllib.request.urlretrieve(sys.argv[1], 'data/' + sys.argv[1].rsplit('/', 1)[1])" "$DEMO_SURFACE" \
+    && chown -R user data
 RUN pip install --no-cache-dir --no-deps .
 
 USER user
