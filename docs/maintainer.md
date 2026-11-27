@@ -37,6 +37,8 @@ python tests/e2e_webapp.py . /tmp/e2e                               # terminal 2
 
 ## Things to know
 
+- The public web app runs at https://huggingface.co/spaces/thunwal/bioinvasionanalysis. After changes to
+  `bioinvasion/` or `webapp/`, update it as described in [deployment.md](deployment.md#updating-the-space).
 - `data/` is ignored by git except the demo cost surface; keep private data and run outputs there or anywhere else.
 - Personal scripts (animation, data preparation) live in a separate repository, `bioinvasion-personal`, which uses
   this package.

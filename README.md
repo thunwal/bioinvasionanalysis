@@ -12,7 +12,8 @@ The method was published in:
 
 Please cite the paper if you use this tool. Version 1.1.0 of this repository is the code used in the paper.
 
-<!-- Add the link to the public web app here after deployment (see docs/deployment.md). -->
+**Try it in the browser, without installing anything:** https://huggingface.co/spaces/thunwal/bioinvasionanalysis
+(the first visit after a quiet period takes about half a minute to start).
 
 ## How it works
 

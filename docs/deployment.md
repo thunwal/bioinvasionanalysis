@@ -33,10 +33,8 @@ CPU upgrade $0.03/hour, about $22/month); prices: https://huggingface.co/pricing
    git push space hf:main                    # Hugging Face builds the image and starts the app
    git checkout refactor
    ```
-   For later updates, repeat the lines from `git checkout hf` (instead of `-b hf space/main`) on.
    **Never use `git add -A` or `git commit -a` on the `hf` branch**: it has no `.gitignore`, so your private data
-   in `data/` and all results would be committed. Hugging Face rejects binary files in git anyway; the demo cost
-   surface is therefore downloaded from GitHub during the build (see the `Dockerfile`).
+   in `data/` and all results would be committed.
    The header in the Space's README.md must contain `sdk: docker`; add `app_port: 7860` to be explicit (7860 is the
    default).
 3. The build log and the app log are shown on the Space page ("Logs").
@@ -47,6 +45,28 @@ Notes:
   temporary anyway (24 hours).
 - Limits for visitors (raster cells, observations, upload size, concurrent computations) are set in
   `webapp/jobs.py`.
+
+## Updating the Space
+
+The Space runs at https://huggingface.co/spaces/thunwal/bioinvasionanalysis. The local branch `hf` holds its history;
+it contains only the files the image needs.
+
+```bash
+git checkout hf
+git checkout main -- Dockerfile .dockerignore requirements.txt pyproject.toml bioinvasion webapp   # or another branch
+git status                                # only these files may be staged; never git add -A / commit -a here
+git commit -m "app from bioinvasionanalysis $(git rev-parse --short main)"
+git push space hf:main
+git checkout main
+```
+
+- `git checkout <branch> -- ...` adds and changes files but does not delete any: if a file was deleted in the
+  repository, also run `git rm <file>` on `hf`.
+- **Demo cost surface:** Hugging Face rejects binary files in git, so the `Dockerfile` downloads the GeoTIFF from
+  GitHub during the build, from a fixed commit (`ARG DEMO_SURFACE`). To use a new surface: commit it to
+  `data/` on GitHub and push, put the URL with the new commit into the `Dockerfile` (and the file name into
+  `webapp/jobs.py`), then update the Space as above.
+- Building the image needs internet access (Python packages, demo cost surface, Natural Earth countries).
 
 ## Any other server
 

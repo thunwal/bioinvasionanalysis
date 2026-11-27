@@ -59,14 +59,16 @@ with the published version (details and numbers in [tests/REFERENCE.md](tests/RE
 - Results: no changes.
 
 ## Phase 6: deployment
-- `Dockerfile` for the web app (Python 3.13, gunicorn on port 7860, demo cost surface and country borders included)
-  and `docs/deployment.md` with the steps for a Hugging Face Space (PRO account, $9/month) or any Docker host.
+- `Dockerfile` for the web app (Python 3.13, gunicorn on port 7860; the demo cost surface and the country borders are
+  downloaded during the build) and `docs/deployment.md` with the steps for a Hugging Face Space (PRO account,
+  $9/month) or any Docker host.
 - `requirements.txt` now holds what the app and the analysis need; `requirements-dev.txt` adds tests and the notebook.
 - Manifests record the package version when git is not available (e.g. in the Docker image).
 - The image was built and tested locally: the whole browser flow works in the container, and all tests (including
   the full sensitivity test of the paper) pass inside it. The slim base image needed `libexpat1` for rasterio.
 - Manifest timestamps include the time zone (the container runs on UTC).
-- Not yet done: deploying the Space (needs your Hugging Face account, see docs/deployment.md).
+- Deployed: https://huggingface.co/spaces/thunwal/bioinvasionanalysis (connected via SSH). Hugging Face does not
+  accept binary files in git, so the demo cost surface is downloaded from GitHub (fixed commit) during the build.
 
 ## Phase 7: wording, demo data, documentation
 - "Sweep" is now called **sensitivity test** everywhere: command `python cli.py sensitivity`, settings section
