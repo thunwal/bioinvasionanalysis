@@ -42,7 +42,7 @@ git clone https://github.com/thunwal/bioinvasionanalysis.git
 cd bioinvasionanalysis
 python -m venv .venv
 source .venv/bin/activate        # Windows: .venv\Scripts\activate
-python -m pip install -r requirements.txt
+python -m pip install -r requirements-dev.txt   # or requirements.txt without tests and notebook
 ```
 
 ## Quick start with the demo project

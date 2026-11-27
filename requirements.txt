@@ -1,5 +1,7 @@
-# analysis
+# Analysis, command line and web app. Development tools: requirements-dev.txt
+dash[diskcache]
 geopandas
+gunicorn
 matplotlib
 numpy
 pandas
@@ -9,10 +11,3 @@ scikit-image
 scipy
 shapely
 statsmodels
-# web app
-dash[diskcache]
-gunicorn
-# demo notebook
-notebook
-# tests
-pytest

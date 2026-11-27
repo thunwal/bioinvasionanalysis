@@ -56,3 +56,10 @@ with the published version (details and numbers in [tests/REFERENCE.md](tests/RE
   time, sessions deleted after 24 hours.
 - Tested end to end in a headless browser (`tests/e2e_webapp.py`), with the development server and with gunicorn.
 - Results: no changes.
+
+## Phase 6: deployment
+- `Dockerfile` for the web app (Python 3.13, gunicorn on port 7860, demo cost surface and country borders included)
+  and `docs/deployment.md` with the steps for a free Hugging Face Space or any Docker host.
+- `requirements.txt` now holds what the app and the analysis need; `requirements-dev.txt` adds tests and the notebook.
+- Manifests record the package version when git is not available (e.g. in the Docker image).
+- Not yet done: building the image and deploying the Space (needs Docker and your Hugging Face account).

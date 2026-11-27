@@ -45,7 +45,8 @@ def log(msg):
 # ============================================ MANIFESTS ===============================================================
 
 def code_version():
-    """Git commit of the code (with '+changes' if there are uncommitted changes), or BIOINVASION_VERSION."""
+    """BIOINVASION_VERSION, else the git commit (with '+changes' if there are uncommitted changes), else the package
+    version."""
     if os.environ.get("BIOINVASION_VERSION"):
         return os.environ["BIOINVASION_VERSION"]
     try:
@@ -55,6 +56,11 @@ def code_version():
                                text=True).stdout.strip()
         return sha + ("+changes" if dirty else "")
     except (OSError, subprocess.CalledProcessError):
+        pass
+    try:  # no git, e.g. in the Docker image: version of the installed package (pyproject.toml)
+        from importlib.metadata import version
+        return f"bioinvasion {version('bioinvasion')}"
+    except Exception:
         return "unknown"
 
 

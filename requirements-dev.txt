@@ -1,0 +1,4 @@
+# Everything for development: the app's requirements plus tests and the demo notebook
+-r requirements.txt
+notebook
+pytest
